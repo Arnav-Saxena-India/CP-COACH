@@ -47,6 +47,12 @@ class Problem(Base):
     # Relationship to solved instances
     solved_by = relationship("SolvedProblem", back_populates="problem")
 
+    # Add unique constraint to prevent duplicates
+    from sqlalchemy import UniqueConstraint
+    __table_args__ = (
+        UniqueConstraint('contest_id', 'problem_index', name='uq_problem_contest_index'),
+    )
+
 
 class SolvedProblem(Base):
     """

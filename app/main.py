@@ -15,70 +15,37 @@ from .models import Problem
 from .api_routes import router
 
 
-def seed_problems(db):
-    """
-    Seed the database with sample competitive programming problems.
-    Only seeds if the problems table is empty.
-    """
-    # Check if problems already exist
-    if db.query(Problem).first():
-        return
-    
-    # Sample problems covering various topics and ratings
-    problems = [
-        # Dynamic Programming problems
-        {"name": "Frog 1", "rating": 800, "tags": "dp", "url": "https://atcoder.jp/contests/dp/tasks/dp_a", "contest_id": None, "problem_index": None},
-        {"name": "Boredom", "rating": 1500, "tags": "dp", "url": "https://codeforces.com/problemset/problem/455/A", "contest_id": 455, "problem_index": "A"},
-        {"name": "Vacations", "rating": 1100, "tags": "dp", "url": "https://codeforces.com/problemset/problem/698/A", "contest_id": 698, "problem_index": "A"},
-        {"name": "Longest Increasing Subsequence", "rating": 1700, "tags": "dp,binary search", "url": "https://codeforces.com/problemset/problem/340/D", "contest_id": 340, "problem_index": "D"},
-        {"name": "Knapsack 1", "rating": 1200, "tags": "dp", "url": "https://atcoder.jp/contests/dp/tasks/dp_d", "contest_id": None, "problem_index": None},
-        {"name": "Cut Ribbon", "rating": 1300, "tags": "dp", "url": "https://codeforces.com/problemset/problem/189/A", "contest_id": 189, "problem_index": "A"},
-        
-        # Graph problems
-        {"name": "Building Roads", "rating": 1000, "tags": "graphs,dfs", "url": "https://cses.fi/problemset/task/1666", "contest_id": None, "problem_index": None},
-        {"name": "Message Route", "rating": 1200, "tags": "graphs,bfs", "url": "https://cses.fi/problemset/task/1667", "contest_id": None, "problem_index": None},
-        {"name": "Graph Connectivity", "rating": 1100, "tags": "graphs,dsu", "url": "https://codeforces.com/problemset/problem/217/A", "contest_id": 217, "problem_index": "A"},
-        {"name": "Shortest Routes I", "rating": 1500, "tags": "graphs,dijkstra", "url": "https://cses.fi/problemset/task/1671", "contest_id": None, "problem_index": None},
-        {"name": "Bipartiteness Check", "rating": 1400, "tags": "graphs,bfs,dfs", "url": "https://codeforces.com/problemset/problem/862/B", "contest_id": 862, "problem_index": "B"},
-        {"name": "Topological Sorting", "rating": 1300, "tags": "graphs,topological sort", "url": "https://cses.fi/problemset/task/1679", "contest_id": None, "problem_index": None},
-        
-        # Binary Search problems
-        {"name": "Binary Search", "rating": 800, "tags": "binary search", "url": "https://codeforces.com/problemset/problem/1539/A", "contest_id": 1539, "problem_index": "A"},
-        {"name": "Aggressive Cows", "rating": 1400, "tags": "binary search", "url": "https://www.spoj.com/problems/AGGRCOW/", "contest_id": None, "problem_index": None},
-        {"name": "Ropes", "rating": 1200, "tags": "binary search", "url": "https://codeforces.com/problemset/problem/579/B", "contest_id": 579, "problem_index": "B"},
-        {"name": "Factory Machines", "rating": 1500, "tags": "binary search", "url": "https://cses.fi/problemset/task/1620", "contest_id": None, "problem_index": None},
-        {"name": "K-th Number", "rating": 1600, "tags": "binary search,sorting", "url": "https://codeforces.com/problemset/problem/76/A", "contest_id": 76, "problem_index": "A"},
-        
-        # Greedy problems
-        {"name": "Tasks and Deadlines", "rating": 1100, "tags": "greedy,sorting", "url": "https://cses.fi/problemset/task/1630", "contest_id": None, "problem_index": None},
-        {"name": "Minimum Moves", "rating": 900, "tags": "greedy,math", "url": "https://codeforces.com/problemset/problem/681/A", "contest_id": 681, "problem_index": "A"},
-        {"name": "Stick Lengths", "rating": 1000, "tags": "greedy,sorting", "url": "https://cses.fi/problemset/task/1074", "contest_id": None, "problem_index": None},
-        
-        # Math problems
-        {"name": "Counting Divisors", "rating": 1100, "tags": "math,number theory", "url": "https://cses.fi/problemset/task/1713", "contest_id": None, "problem_index": None},
-        {"name": "Exponentiation", "rating": 1000, "tags": "math,modular arithmetic", "url": "https://cses.fi/problemset/task/1095", "contest_id": None, "problem_index": None},
-        {"name": "GCD and LCM", "rating": 900, "tags": "math,number theory", "url": "https://codeforces.com/problemset/problem/858/A", "contest_id": 858, "problem_index": "A"},
-        
-        # String problems
-        {"name": "Palindrome Check", "rating": 800, "tags": "strings", "url": "https://codeforces.com/problemset/problem/131/A", "contest_id": 131, "problem_index": "A"},
-        {"name": "Substring Removal", "rating": 1200, "tags": "strings,two pointers", "url": "https://codeforces.com/problemset/problem/1496/A", "contest_id": 1496, "problem_index": "A"},
-        {"name": "String Hashing", "rating": 1400, "tags": "strings,hashing", "url": "https://cses.fi/problemset/task/1753", "contest_id": None, "problem_index": None},
-        
-        # Implementation problems
-        {"name": "Watermelon", "rating": 800, "tags": "implementation,math", "url": "https://codeforces.com/problemset/problem/4/A", "contest_id": 4, "problem_index": "A"},
-        {"name": "Theatre Square", "rating": 900, "tags": "implementation,math", "url": "https://codeforces.com/problemset/problem/1/A", "contest_id": 1, "problem_index": "A"},
-        {"name": "Way Too Long Words", "rating": 800, "tags": "implementation,strings", "url": "https://codeforces.com/problemset/problem/71/A", "contest_id": 71, "problem_index": "A"},
-        {"name": "Team", "rating": 800, "tags": "implementation", "url": "https://codeforces.com/problemset/problem/231/A", "contest_id": 231, "problem_index": "A"},
-    ]
-    
-    # Add problems to database
-    for p in problems:
-        problem = Problem(**p)
-        db.add(problem)
-    
-    db.commit()
-    print(f"Seeded {len(problems)} problems to database")
+from .cf_client import fetch_problems_from_cf
+from sqlalchemy.exc import IntegrityError
 
+def fetch_and_store_problems(db):
+    """
+    Fetch problems from Codeforces API and store them in the database.
+    """
+    problems = fetch_problems_from_cf()
+    if not problems:
+        print("No problems fetched from Codeforces.")
+        return
+
+    count = 0
+    for p_data in problems:
+        # Check if exists
+        exists = db.query(Problem).filter(
+            Problem.contest_id == p_data["contest_id"],
+            Problem.problem_index == p_data["problem_index"]
+        ).first()
+        
+        if not exists:
+            problem = Problem(**p_data)
+            db.add(problem)
+            count += 1
+    
+    try:
+        db.commit()
+        print(f"Successfully added {count} new problems to the database.")
+    except Exception as e:
+        print(f"Database error during seeded: {e}")
+        db.rollback()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -86,13 +53,21 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events.
     Creates database tables and seeds sample data on startup.
     """
-    # Startup: Create tables and seed data
+    # Startup: Create tables
     Base.metadata.create_all(bind=engine)
     
-    # Seed sample problems
+    # Seed problems if database is empty or explicitly requested
     db = SessionLocal()
     try:
-        seed_problems(db)
+        # Check if we have enough problems (heuristic check)
+        problem_count = db.query(Problem).count()
+        if problem_count < 100:
+            print(f"Database has only {problem_count} problems. Fetching from Codeforces...")
+            fetch_and_store_problems(db)
+        else:
+            print(f"Database already has {problem_count} problems. Skipping initial fetch.")
+    except Exception as e:
+        print(f"Error during startup seeding: {e}")
     finally:
         db.close()
     
