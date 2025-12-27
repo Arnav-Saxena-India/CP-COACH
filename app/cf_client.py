@@ -17,7 +17,7 @@ def fetch_problems_from_cf() -> List[Dict]:
     """
     try:
         logger.info("Fetching problems from Codeforces API...")
-        response = requests.get(CF_API_URL, timeout=10)
+        response = requests.get(CF_API_URL, timeout=30)
         response.raise_for_status()
         data = response.json()
         

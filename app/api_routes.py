@@ -88,6 +88,37 @@ def get_user(handle: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
     
+    # Sync recent solves from Codeforces to update daily counter
+    try:
+        from .weakness_analysis import fetch_user_submissions
+        recent_subs = fetch_user_submissions(handle, count=10) # Fetch last 10 is enough for "today" check efficiently
+        
+        # Check for solves today
+        from datetime import datetime
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        for sub in recent_subs:
+            # Check if AC and today
+            if sub.get("verdict") == "OK":
+                creation_time = datetime.fromtimestamp(sub.get("creationTimeSeconds", 0))
+                if creation_time >= today_start:
+                    # Try to record it
+                    contest_id = sub.get("contestId")
+                    index = sub.get("problem", {}).get("index")
+                    
+                    if contest_id and index:
+                        # Find local problem
+                        local_prob = db.query(Problem).filter(
+                            Problem.contest_id == contest_id,
+                            Problem.problem_index == index
+                        ).first()
+                        
+                        if local_prob:
+                            # Record solve
+                            record_solve(db, db_user.id, local_prob.id, "AC")
+    except Exception as e:
+        print(f"Sync error (non-fatal): {e}")
+
     # Calculate daily solved count
     from .models import SolvedProblem
     from datetime import datetime
@@ -108,6 +139,20 @@ def get_user(handle: str, db: Session = Depends(get_db)):
         "created_at": db_user.created_at,
         "last_problem_solved": db_user.last_problem_solved
     }
+
+
+@router.post("/admin/refresh-problems")
+def force_refresh_problems(db: Session = Depends(get_db)):
+    """
+    Admin: Force fetch problems from Codeforces.
+    Useful if the specific problem set is missing or stale.
+    """
+    from .main import fetch_and_store_problems
+    try:
+        fetch_and_store_problems(db)
+        return {"message": "Problem fetch triggered successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/recommend", response_model=RecommendationResponse)
