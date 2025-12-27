@@ -14,8 +14,8 @@ client = Groq(
 )
 
 # Model configuration
-# Llama3-70b is extremely fast and capable (Groq LPU)
-MODEL_NAME = "llama3-70b-8192"
+# Using Llama 3.3 70B (Latest stable flagship)
+MODEL_NAME = "llama-3.3-70b-versatile"
 
 def generate_weakness_explanation(summary_data: dict) -> str:
     """
