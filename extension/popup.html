@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CP Coach</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>CP Coach</h1>
+      <div id="daily-counter" class="daily-badge hidden">Daily: 0</div>
+    </header>
+
+    <!-- Input Section -->
+    <section class="input-section">
+      <div class="field">
+        <label for="handle">Handle</label>
+        <input type="text" id="handle" placeholder="Codeforces handle">
+        <span id="handle-status" class="status"></span>
+      </div>
+
+      <div class="field">
+        <label for="topic">Topic</label>
+        <select id="topic">
+          <option value="implementation">Implementation (1865)</option>
+          <option value="math">Math (1536)</option>
+          <option value="greedy">Greedy (1452)</option>
+          <option value="dp">Dynamic Programming (1256)</option>
+          <option value="data structures">Data Structures (969)</option>
+          <option value="brute force">Brute Force (930)</option>
+          <option value="constructive algorithms">Constructive Algorithms (849)</option>
+          <option value="graphs">Graphs (663)</option>
+          <option value="sortings">Sortings (598)</option>
+          <option value="binary search">Binary Search (577)</option>
+          <option value="dfs and similar">DFS and Similar (564)</option>
+          <option value="trees">Trees (482)</option>
+          <option value="strings">Strings (458)</option>
+          <option value="number theory">Number Theory (409)</option>
+          <option value="combinatorics">Combinatorics (340)</option>
+          <option value="geometry">Geometry (276)</option>
+          <option value="bitmasks">Bitmasks (270)</option>
+          <option value="two pointers">Two Pointers (268)</option>
+          <option value="dsu">DSU (204)</option>
+          <option value="shortest paths">Shortest Paths (159)</option>
+          <option value="probabilities">Probabilities (152)</option>
+          <option value="divide and conquer">Divide and Conquer (151)</option>
+          <option value="hashing">Hashing (123)</option>
+          <option value="games">Games (115)</option>
+          <option value="flows">Flows (88)</option>
+          <option value="interactive">Interactive (87)</option>
+          <option value="matrices">Matrices (83)</option>
+          <option value="string suffix structures">String Suffix Structures (65)</option>
+          <option value="fft">FFT (46)</option>
+          <option value="graph matchings">Graph Matchings (45)</option>
+          <option value="ternary search">Ternary Search (36)</option>
+          <option value="expression parsing">Expression Parsing (33)</option>
+          <option value="meet-in-the-middle">Meet-in-the-Middle (32)</option>
+          <option value="2-sat">2-SAT (17)</option>
+          <option value="chinese remainder theorem">Chinese Remainder Theorem (10)</option>
+          <option value="schedules">Schedules (5)</option>
+        </select>
+      </div>
+
+      <button id="next-problem" class="btn-primary">FIND PROBLEM</button>
+      <button id="view-analysis" class="btn-secondary">View Weakness Analysis</button>
+    </section>
+
+    <!-- Analysis Section -->
+    <section id="analysis-view" class="analysis-section hidden">
+      <h2>Weakness Analysis</h2>
+      <div id="analysis-loading" class="loading hidden">Analyzing contest history...</div>
+      <div id="analysis-content" class="hidden">
+        <div class="ai-box">
+          <h3>Coach's Insight</h3>
+          <p id="ai-explanation"></p>
+        </div>
+
+        <h3>Weak Rating Bands</h3>
+        <ul id="weak-bands-list" class="tag-list"></ul>
+
+        <h3>Weak Topics</h3>
+        <ul id="weak-topics-list" class="tag-list"></ul>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>Upsolve Suggestions</h3>
+          <button id="refresh-upsolve" class="btn-icon" title="Refresh Suggestions">↻</button>
+        </div>
+        <div id="upsolve-list" class="upsolve-list"></div>
+      </div>
+      <button id="back-to-home" class="btn-secondary">Back to Practice</button>
+    </section>
+
+    <!-- Result Section -->
+    <section id="result" class="result-section hidden">
+      <hr>
+
+      <div id="loading" class="loading hidden">
+        Fetching...
+      </div>
+
+      <div id="error" class="error hidden"></div>
+
+      <div id="problem" class="problem hidden">
+        <h2 id="problem-name" class="problem-name"></h2>
+        <p class="problem-rating">Rating: <span id="problem-rating"></span></p>
+        <p class="problem-explanation" id="problem-explanation"></p>
+
+        <div class="action-buttons">
+          <a id="solve-link" href="#" target="_blank" class="btn-solve">
+            Solve
+          </a>
+          <button id="skip-btn" class="btn-skip">
+            Skip
+          </button>
+          <button id="mark-solved" class="btn-mark">
+            Mark as Solved
+          </button>
+        </div>
+
+        <div id="solved-status" class="solved-status hidden"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

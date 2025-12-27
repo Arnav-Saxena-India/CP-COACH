@@ -1,0 +1,21 @@
+# Installers and Binaries
+*.exe
+*.dll
+*.iso
+*.msi
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

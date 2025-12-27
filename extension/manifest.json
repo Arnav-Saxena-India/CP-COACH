@@ -1,0 +1,28 @@
+{
+    "manifest_version": 3,
+    "name": "CP Coach",
+    "version": "1.1.0",
+    "description": "Get personalized competitive programming problem recommendations",
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "CP Coach - Get Next Problem"
+    },
+    "permissions": [
+        "activeTab",
+        "storage"
+    ],
+    "host_permissions": [
+        "http://localhost:8080/*",
+        "http://127.0.0.1:8080/*",
+        "https://codeforces.com/*"
+    ],
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+Y",
+                "mac": "Command+Shift+Y"
+            },
+            "description": "Get next CP problem"
+        }
+    }
+}
