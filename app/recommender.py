@@ -113,10 +113,20 @@ def calculate_target_rating(db: Session, user_id: int, current_rating: int) -> i
             
     elif skip_time > solve_time:
         # Last action was a Skip
-        # Use current rating as base for skips (safe fallback)
+        # PROGRESSIVE SKIP: If it's too easy, base it on the PROBLEM'S rating, not the user's.
+        skip_base_rating = last_skip.problem.rating if last_skip and last_skip.problem else current_rating
+        
         if last_skip.feedback == "too_easy":
-            target = current_rating + 100
+            # If they say a 1200 is too easy, give them 1300 -- even if they are rated 800.
+            # Use max(current, problem) to ensure we go UP.
+            proven_skip_level = max(current_rating, skip_base_rating)
+            target = proven_skip_level + 100
+            
         elif last_skip.feedback == "too_hard":
+            # If they say 1200 is too hard, drop down.
+            # But don't punish 800 user for skipping 2000. 
+            # Safe logic: Return to user rating - 100, or Problem - 100?
+            # Let's align closer to user rating to reset confidence.
             target = current_rating - 100
         else:
              target = current_rating # Neutral skip
