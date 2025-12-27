@@ -141,7 +141,7 @@ def get_user(handle: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/admin/refresh-problems")
+@router.get("/admin/refresh-problems")
 def force_refresh_problems(db: Session = Depends(get_db)):
     """
     Admin: Force fetch problems from Codeforces.
