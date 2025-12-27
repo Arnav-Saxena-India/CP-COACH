@@ -13,6 +13,14 @@ An intelligent Chrome extension that acts as your personal Competitive Programmi
 5.  Select the `extension` folder from this repository.
 6.  Pin the extension to your toolbar and start solving.
 
+## 🚀 Usage
+
+1.  **Open the Extension:** Click the CP Coach icon in your Chrome toolbar.
+2.  **Enter Your Handle:**
+    *   **Auto-Detect:** Open [Codeforces.com](https://codeforces.com) in a new tab, and the extension will automatically detect your logged-in username.
+    *   **Manual:** Alternatively, just type your Codeforces username into the input box.
+3.  **Get Better:** View your weakness analysis and start solving recommended problems!
+
 ## ⚡ Key Features
 
 *   **Weakness Analysis:** Automatically detects topics you struggle with based on your submission history.
