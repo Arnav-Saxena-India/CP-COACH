@@ -1,31 +1,31 @@
-# Competitive Programming Coach (Chrome Extension)
+# Competitive Programming Coach
 
 An intelligent Chrome extension that acts as your personal Competitive Programming coach. It analyzes your performance on Codeforces, identifies your weak topics, and recommends problems to help you improve.
 
-## 🚀 Installation (For Users)
+## 📥 Installation
 
-**Note:** This extension uses a hosted backend server, so no extra setup is required!
+**Note:** This extension uses a hosted backend server, so no extra setup is required.
 
 1.  **Download** this repository (Code -> Download ZIP) and extract it.
 2.  Open **Google Chrome** and go to `chrome://extensions/`.
 3.  Enable **Developer mode** (top right corner toggle).
 4.  Click **Load unpacked**.
 5.  Select the `extension` folder from this repository.
-6.  Pin the extension to your toolbar and start solving!
+6.  Pin the extension to your toolbar and start solving.
 
-## 🌟 Features
+## ⚡ Key Features
 
 *   **Weakness Analysis:** Automatically detects topics you struggle with based on your submission history.
 *   **Smart Recommendations:** Suggests problems tailored to your rating and weak areas.
 *   **Daily Goals:** Tracks your solved problems and keeps you consistent.
-*   **Visual Feedback:** beautiful, modern UI inspired by premium dashboard designs.
+*   **Visual Feedback:** Modern, dark-themed dashboard aimed at productivity.
 
-## 🛠️ For Developers (Source Code)
+## 🔌 For Developers and Contributors
 
-This repository contains the full source code:
+This repository contains the full source code for the project:
 
-*   `extension/`: The Chrome Extension (Frontend).
-*   `frontend/`: The Next.js Website.
+*   `extension/`: The Chrome Extension (Frontend Logic).
+*   `frontend/`: The Next.js Web Interface.
 *   `app/`: The FastAPI Backend (Hosted on Render).
 
-If you want to contribute or run the backend yourself, see `requirements.txt`.
+To contribute or run the backend locally, please refer to the `requirements.txt` file and set up your environment variables.
