@@ -36,4 +36,12 @@ This repository contains the full source code for the project:
 *   `frontend/`: The Next.js Web Interface.
 *   `app/`: The FastAPI Backend (Hosted on Render).
 
-To contribute or run the backend locally, please refer to the `requirements.txt` file and set up your environment variables.
+To contribute or run the backend locally:
+
+1.  Install dependencies: `pip install -r requirements.txt`
+2.  Set up environment variables in `.env`:
+    ```bash
+    DATABASE_URL=postgresql://...
+    GROQ_API_KEY=your_groq_api_key  # Required for AI
+    ```
+3.  Run the server: `python -m app.main`
