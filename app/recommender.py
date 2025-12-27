@@ -89,23 +89,37 @@ def calculate_target_rating(db: Session, user_id: int, current_rating: int) -> i
     
     if solve_time > skip_time:
         # Last action was a Solve
+        # PROGRESSIVE OVERLOAD: Base target on the problem rating you just solved, not your user rating
+        base_rating = last_solve.problem.rating if last_solve and last_solve.problem else current_rating
+        
+        # Fallback: if problem rating is very low (e.g. 800) but user is 1500, use user rating max
+        # Actually, if they chose to solve an 800, maybe they want to build up?
+        # Let's take max(current_rating, base_rating) to avoid dropping too low?
+        # No, if a 1500 user solves an 800 efficiently, they should probably get ~1000 next, not 1600 immediately.
+        # But if they are 1500, giving them 900 is annoying.
+        # Compromise: Base on current_rating mostly, but use problem_rating to prove competence.
+        # Let's use max(current_rating, base_rating) as the "proven level".
+        
+        proven_level = max(current_rating, base_rating)
+
         if last_solve.verdict == "AC":
             # Check for slowness
             if last_solve.is_slow_solve:
-                target += 0  # Maintain level to practice
+                target = proven_level + 0  # Maintain level to practice
             else:
-                target += 100 # Standard progression
+                target = proven_level + 100 # Standard progression
         else:
-            target -= 50 # WA
+            target = proven_level - 50 # WA
             
     elif skip_time > solve_time:
         # Last action was a Skip
+        # Use current rating as base for skips (safe fallback)
         if last_skip.feedback == "too_easy":
-            target += 100
+            target = current_rating + 100
         elif last_skip.feedback == "too_hard":
-            target -= 100
+            target = current_rating - 100
         else:
-             target += 0 # Neutral skip
+             target = current_rating # Neutral skip
              
     else:
         # No history
