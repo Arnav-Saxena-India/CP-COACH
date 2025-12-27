@@ -3,7 +3,7 @@
  * Optimized for daily use with minimal friction
  */
 
-const API_BASE_URL = 'http://127.0.0.1:8082';
+const API_BASE_URL = 'https://cp-coach-backend.onrender.com';
 
 // DOM Elements
 const handleInput = document.getElementById('handle');
