@@ -5,7 +5,13 @@
     "description": "Get personalized competitive programming problem recommendations",
     "action": {
         "default_popup": "popup.html",
-        "default_title": "CP Coach - Get Next Problem"
+        "default_title": "CP Coach - Get Next Problem",
+        "default_icon": "icons/logo.jpg"
+    },
+    "icons": {
+        "16": "icons/logo.jpg",
+        "48": "icons/logo.jpg",
+        "128": "icons/logo.jpg"
     },
     "permissions": [
         "activeTab",
