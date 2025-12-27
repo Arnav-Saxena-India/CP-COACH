@@ -61,7 +61,7 @@ frontend/
 3. (Optional) Configure backend URL:
    Create a `.env.local` file:
    ```
-   NEXT_PUBLIC_API_URL=http://localhost:8000
+   NEXT_PUBLIC_API_URL=https://cp-coach-backend.onrender.com
    ```
 
 ### Running the Development Server
