@@ -117,8 +117,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-if os.getenv("RAILWAY_ENVIRONMENT"):
-    logger.info("🚀 Railway Deployment Detected")
+if os.getenv("RENDER") or os.getenv("RAILWAY_ENVIRONMENT"):
+    logger.info("🚀 Production Environment Detected (Render/Railway)")
     logger.info("Database URL Configured: " + ("YES" if os.getenv("DATABASE_URL") else "NO"))
 else:
     logger.info("🔧 Running in Local/Development Mode")
