@@ -1,138 +1,102 @@
-"""
-AI Coach Module.
-
-Uses Google Gemini to generate human-readable explanations
-of weakness analysis results.
-
-IMPORTANT: AI does NOT compute weaknesses - it only explains them.
-All analysis is done in weakness_analysis.py (deterministic).
-"""
-
-import json
-import requests
-from typing import Dict, Optional
-
-
-# =============================================================================
-# GEMINI API CONFIGURATION
-# =============================================================================
-
 import os
+import logging
+import json
+from groq import Groq
 
-# =============================================================================
-# GEMINI API CONFIGURATION
-# =============================================================================
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+# Initialize Groq client
+# ensure GROQ_API_KEY is set in environment variables
+client = Groq(
+    api_key=os.getenv("GROQ_API_KEY"),
+)
 
+# Model configuration
+# Llama3-70b is extremely fast and capable (Groq LPU)
+MODEL_NAME = "llama3-70b-8192"
 
-# =============================================================================
-# PROMPT TEMPLATE
-# =============================================================================
-
-WEAKNESS_PROMPT = """You are a competitive programming coach.
-
-Based ONLY on the structured performance summary below:
-1. Explain the user's weak areas in plain language.
-2. Explain why these weaknesses are likely occurring.
-3. Suggest a focused upsolving strategy.
-
-Rules:
-- Do NOT recommend new problems.
-- Do NOT change priorities.
-- Do NOT mention ratings explicitly unless relevant.
-- Keep explanation concise and actionable.
-
-Performance Summary:
-{summary_json}
-
-Provide:
-1. A short paragraph explaining weaknesses.
-2. 3-5 bullet points on how to upsolve effectively.
-"""
-
-
-# =============================================================================
-# AI EXPLANATION GENERATION
-# =============================================================================
-
-def generate_weakness_explanation(summary: Dict) -> str:
+def generate_weakness_explanation(summary_data: dict) -> str:
     """
-    Generate AI explanation of weakness analysis.
-    
-    Uses Google Gemini API to interpret the summary and provide
-    coaching advice. The AI receives ONLY summarized statistics,
-    never raw submission data.
+    Generate a personalized explanation of weaknesses using Groq (Llama3).
     
     Args:
-        summary: Compact summary dict from prepare_weakness_summary()
-        
+        summary_data: Dict containing:
+            - user_rating
+            - weak_rating_bands (list)
+            - weak_topics (list)
+            - upsolve_preview (list of problems)
+            - overall_solved_rate
+            
     Returns:
-        Human-readable coaching explanation string
+        String explanation from AI
+        
+    Raises:
+        Exception: If API call fails (handled by caller)
     """
-    if not GEMINI_API_KEY:
-        return "AI explanation unavailable - API key not configured."
-    
+    if not os.getenv("GROQ_API_KEY"):
+        return "AI explanation unavailable - GROQ_API_KEY not configured."
+
     try:
-        # Format prompt with summary
-        prompt = WEAKNESS_PROMPT.format(
-            summary_json=json.dumps(summary, indent=2)
-        )
+        # Construct prompt
+        prompt = f"""
+        You are an elite Competitive Programming Coach. 
+        Analyze this student's performance and give brief, high-impact advice.
         
-        # Call Gemini API
-        response = requests.post(
-            f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
-            headers={"Content-Type": "application/json"},
-            json={
-                "contents": [{
-                    "parts": [{"text": prompt}]
-                }],
-                "generationConfig": {
-                    "temperature": 0.7,
-                    "maxOutputTokens": 500
+        Student Profile:
+        - Rating: {summary_data.get('user_rating')}
+        - Weak Rating Ranges: {', '.join(map(str, summary_data.get('weak_rating_bands', [])))} (High failure rate here)
+        - Weak Topics: {', '.join(summary_data.get('weak_topics', []))}
+        - Overall Solved Rate: {int(summary_data.get('overall_solved_rate', 0) * 100)}%
+        
+        Upsolving Recommendation:
+        I have selected {summary_data.get('upsolve_count')} problems for them, focusing on {', '.join([p['tags'] for p in summary_data.get('upsolve_preview', [])][:3])}.
+        
+        Task:
+        1. Explain WHY they are stuck (connection between rating/topics).
+        2. Give 1 concrete tip to improve in their weak topics.
+        3. Motivate them to solve the recommended problems.
+        
+        Keep it short (max 3 sentences). Be encouraging but direct.
+        """
+
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful, expert competitive programming coach."
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
                 }
-            },
-            timeout=30
+            ],
+            model=MODEL_NAME,
+            temperature=0.6,
+            max_tokens=250,
         )
-        
-        if response.status_code != 200:
-            return f"AI explanation unavailable - API error ({response.status_code})"
-        
-        data = response.json()
-        
-        # Extract text from response
-        candidates = data.get("candidates", [])
-        if not candidates:
-            return "AI explanation unavailable - empty response"
-        
-        content = candidates[0].get("content", {})
-        parts = content.get("parts", [])
-        if not parts:
-            return "AI explanation unavailable - no content"
-        
-        explanation = parts[0].get("text", "")
-        return explanation.strip()
-        
-    except requests.Timeout:
-        return "AI explanation unavailable - request timed out"
+
+        return chat_completion.choices[0].message.content
+
     except Exception as e:
-        return f"AI explanation unavailable - {str(e)}"
+        logger.error(f"Groq API Error: {str(e)}")
+        # Return a friendly error message to the UI
+        if "401" in str(e):
+             return "AI unavailable: Invalid API Key."
+        elif "429" in str(e):
+             return "AI busy: Rate limit exceeded. Try again in a minute."
+        return "AI insight temporarily unavailable (Backend connection issue)."
 
 
-def generate_upsolve_reason(candidate: Dict) -> str:
+def generate_upsolve_reason(problem_data: dict) -> str:
     """
-    Generate a short reason for why this problem is recommended for upsolving.
-    
-    This is deterministic, not AI-generated.
-    
-    Args:
-        candidate: Upsolve candidate dict
-        
-    Returns:
-        Short reason string
+    Generate a very short reason for recommending a specific problem.
+    (Optional: Can use AI, but for speed logic we use template or mini-AI call)
+    For Groq speed, we CAN actually use AI, but purely rule-based is faster 
+    and saves rate limits. Sticking to deterministic for list items.
     """
-    reasons = candidate.get("reasons", [])
+    reasons = problem_data.get("reasons", [])
     if reasons:
-        return "; ".join(reasons)
-    return "Attempted but unsolved in contest"
+        return f"Focus: {reasons[0]}"
+    return "Recommended for skill improvement."
