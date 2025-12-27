@@ -123,11 +123,14 @@ def calculate_target_rating(db: Session, user_id: int, current_rating: int) -> i
             target = proven_skip_level + 100
             
         elif last_skip.feedback == "too_hard":
-            # If they say 1200 is too hard, drop down.
-            # But don't punish 800 user for skipping 2000. 
-            # Safe logic: Return to user rating - 100, or Problem - 100?
-            # Let's align closer to user rating to reset confidence.
-            target = current_rating - 100
+            # If they say 1200 is too hard, they likely want 1100.
+            # Don't drop them to 800 (User rating) if they are trying 1200.
+            # Gentle step down.
+            
+            # Use skip_base_rating - 100
+            # But ensure we don't go below what might be reasonable?
+            target = skip_base_rating - 100
+            
         else:
              target = current_rating # Neutral skip
              
