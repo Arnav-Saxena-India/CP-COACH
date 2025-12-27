@@ -26,9 +26,15 @@ const dailyCounter = document.getElementById('daily-counter');
 // Timer Elements
 const timerDisplay = document.getElementById('timer-display');
 const timerToggle = document.getElementById('timer-toggle');
+const timerPause = document.getElementById('timer-pause');
 let timerInterval = null;
-let timerSeconds = 0;
-let isTimerRunning = false;
+let timerSeconds = 0; // Displayed seconds
+// Timer State for Persistence
+let timerState = {
+    isRunning: false,
+    startTime: null,
+    accumulated: 0
+};
 
 // Analysis Elements
 const viewAnalysisBtn = document.getElementById('view-analysis');
@@ -80,6 +86,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentProblem = stored.currentProblem;
         displayProblem(currentProblem, stored.currentProblem.targetRating || 0);
     }
+
+    // Restore timer state
+    restoreTimerState();
 });
 
 /**
@@ -294,11 +303,139 @@ function displayProblem(problem, targetRating) {
     resetTimer(); // Reset timer for new problem
 }
 
-// Timer Logic
+if (timerToggle) {
+    timerToggle.addEventListener('click', () => {
+        if (timerState.isRunning) {
+            // Stop/Reset? No, the main button should probably be "Start" / "Reset" 
+            // and the separate button is Pause.
+            // User asked for "Pause button".
+            // Let's make: 
+            // [Start] -> changes to [Reset] ?? 
+            // Actually standard: [Start] -> [Stop] (Resets). Pause is separate.
+            // But user said "do something else the timer resets... make sure it started even if closed".
+
+            // Logic:
+            // Toggle Button: Starts if stopped. Resets if running?
+            // Let's stick to: Toggle = Start / Stop (Reset).
+            // Pause = Pause / Resume.
+
+            // Wait, standard UI:
+            // [Start] -> [Pause] [Reset]
+
+            // Let's implement:
+            // Toggle Button: "Start" (if stopped) / "Reset" (if running/paused).
+            // Pause Button: "Pause" (if running) / "Resume" (if paused).
+
+            // Actually simpler implementation requested: "Start timer... pause button".
+            // Button 1: Start / Reset
+            // Button 2: Pause / Resume (visible only when started)
+
+            if (timerState.isRunning || timerState.accumulated > 0) {
+                // It's active. This button acts as RESET now?
+                // Or acts as Stop?
+                resetTimer();
+            } else {
+                startTimer();
+            }
+        } else {
+            if (timerState.accumulated > 0) {
+                // Paused state -> This button resets
+                resetTimer();
+            } else {
+                startTimer();
+            }
+        }
+    });
+}
+
+if (timerPause) {
+    timerPause.addEventListener('click', () => {
+        if (timerState.isRunning) {
+            pauseTimer();
+        } else {
+            resumeTimer();
+        }
+    });
+}
+
+
+// Persist Logic
+async function saveTimerState() {
+    await chrome.storage.local.set({ 'timerState': timerState });
+}
+
+async function restoreTimerState() {
+    const data = await chrome.storage.local.get(['timerState']);
+    if (data.timerState) {
+        timerState = data.timerState;
+
+        // Calculate elapsed if running
+        if (timerState.isRunning && timerState.startTime) {
+            const now = Date.now();
+            const elapsedSinceStart = Math.floor((now - timerState.startTime) / 1000);
+            timerSeconds = timerState.accumulated + elapsedSinceStart;
+
+            // Restart interval
+            startInterval();
+        } else {
+            // Just set accumulated
+            timerSeconds = timerState.accumulated;
+        }
+        updateTimerUI();
+    }
+}
+
+function startTimer() {
+    timerState.isRunning = true;
+    timerState.startTime = Date.now();
+    // accumulated stays same (0 if fresh)
+    saveTimerState();
+    startInterval();
+    updateTimerUI();
+}
+
+function pauseTimer() {
+    // Calculate accumulated
+    const now = Date.now();
+    const elapsed = Math.floor((now - timerState.startTime) / 1000);
+    timerState.accumulated += elapsed;
+    timerState.startTime = null;
+    timerState.isRunning = false;
+
+    saveTimerState();
+    clearInterval(timerInterval);
+    timerSeconds = timerState.accumulated;
+    updateTimerUI();
+}
+
+function resumeTimer() {
+    timerState.isRunning = true;
+    timerState.startTime = Date.now();
+    saveTimerState();
+    startInterval();
+    updateTimerUI();
+}
+
+function startInterval() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        // Recalculate based on real time to prevent drift
+        const now = Date.now();
+        const currentElapsed = Math.floor((now - timerState.startTime) / 1000);
+        timerSeconds = timerState.accumulated + currentElapsed;
+        updateTimerUI();
+    }, 1000);
+}
+
 function resetTimer() {
     clearInterval(timerInterval);
-    isTimerRunning = false;
+    timerState = {
+        isRunning: false,
+        startTime: null,
+        accumulated: 0
+    };
     timerSeconds = 0;
+    saveTimerState();
     updateTimerUI();
 }
 
@@ -308,27 +445,23 @@ function updateTimerUI() {
     if (timerDisplay) timerDisplay.textContent = `${mins}:${secs}`;
 
     if (timerToggle) {
-        timerToggle.textContent = isTimerRunning ? 'Stop Timer' : 'Start Timer';
-        timerToggle.classList.toggle('active', isTimerRunning);
-    }
-}
-
-if (timerToggle) {
-    timerToggle.addEventListener('click', () => {
-        if (isTimerRunning) {
-            // Stop
-            clearInterval(timerInterval);
-            isTimerRunning = false;
+        if (timerState.isRunning || timerState.accumulated > 0) {
+            timerToggle.textContent = 'Reset';
+            timerToggle.classList.add('active'); // Red style usually
         } else {
-            // Start
-            isTimerRunning = true;
-            timerInterval = setInterval(() => {
-                timerSeconds++;
-                updateTimerUI();
-            }, 1000);
+            timerToggle.textContent = 'Start Timer';
+            timerToggle.classList.remove('active');
         }
-        updateTimerUI();
-    });
+    }
+
+    if (timerPause) {
+        if (timerState.isRunning || timerState.accumulated > 0) {
+            timerPause.classList.remove('hidden');
+            timerPause.textContent = timerState.isRunning ? 'Pause' : 'Resume';
+        } else {
+            timerPause.classList.add('hidden');
+        }
+    }
 }
 
 /**
