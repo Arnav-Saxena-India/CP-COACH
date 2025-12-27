@@ -293,6 +293,11 @@ def rank_problems_by_distance(
     """
     # MVP ranking: prioritize closeness to target difficulty
     # Future: add problem quality, recency, pattern similarity
+    
+    # SHUFFLE first to break stability of sort (avoid showing same old problems)
+    import random
+    random.shuffle(problems)
+    
     sorted_problems = sorted(
         problems,
         key=lambda p: abs(p.rating - target_rating)
