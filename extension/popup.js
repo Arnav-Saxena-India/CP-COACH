@@ -146,8 +146,8 @@ async function fetchUserStatus(handle) {
             }
         }
     } catch (e) {
-        // Silent fail for background status fetch
-        console.error("Failed to fetch user status", e);
+        console.error("Status fetch failed", e);
+        // Don't hide it, keep previous value or --
     }
 }
 
@@ -175,6 +175,8 @@ nextButton.addEventListener('click', async () => {
     await chrome.storage.sync.set({ cfHandle: handle, lastTopic: topic });
 
     // Fetch recommendation
+    // Also fetch status to ensure daily count is accurate immediately
+    fetchUserStatus(handle);
     await fetchRecommendation(handle, topic);
 });
 
