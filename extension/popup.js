@@ -727,7 +727,7 @@ function displayAnalysis(data) {
                         <span class="upsolve-name">${prob.name}</span>
                         <span class="upsolve-rating" style="display:block; font-size:11px;">${prob.rating}</span>
                     </div>
-                    <a href="${probUrl}" target="_blank" class="btn-secondary" style="padding:4px 8px; font-size:11px; margin-top:0;">Link ↗</a>
+                    <!-- Link button removed per user request -->
                 </div>
                 <div class="upsolve-reason">
                     ${prob.reason}
