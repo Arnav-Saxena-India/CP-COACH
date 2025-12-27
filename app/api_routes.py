@@ -294,19 +294,24 @@ def skip_problem(
         db.commit()
         return {"message": f"Skipped - marked '{problem.name}' as done", "auto_solved": True}
     else:
-        # First skip - mark as done immediately per user request
-        # We record it as skipped, AND record as solved to remove from pool permanently
-        # But we pass the User Feedback to the DB for rating adjustment next time
+        # First skip - mark as done immediately per user request (User Experience decision)
+        # We record it as solved to remove from pool permanently
+        
+        # 1. Record fake solve first (so it happens "before" the skip)
+        record_solve(db, db_user.id, problem_id, "AC")
+        
+        # 2. Record skip with refined timestamp to ensure it's treated as the LATEST action
+        from datetime import timedelta
+        # Ensure skip is strictly "later" than the solve we just recorded
+        # This guarantees calculate_target_rating sees the Skip (and its feedback) as the last interaction
         skip_record = SkippedProblem(
             user_id=db_user.id,
             problem_id=problem_id,
             skip_count=1,
-            feedback=feedback
+            feedback=feedback,
+            skipped_at=datetime.utcnow() + timedelta(seconds=1) 
         )
         db.add(skip_record)
-        
-        # Auto-solve immediately
-        record_solve(db, db_user.id, problem_id, "AC")
         
         db.commit()
         return {"message": f"Skipped & marked '{problem.name}' as done", "auto_solved": True}
