@@ -66,6 +66,8 @@ class SolvedProblem(Base):
     problem_id = Column(Integer, ForeignKey("problems.id"), nullable=False)
     solved_at = Column(DateTime, default=datetime.utcnow)
     verdict = Column(String, default="AC")  # "AC" (Accepted) or "WA" (Wrong Answer)
+    time_taken_seconds = Column(Integer, nullable=True)  # Time taken to solve
+    is_slow_solve = Column(Boolean, default=False)  # Flagged by AI as slow
     
     # Relationships
     user = relationship("User", back_populates="solved_problems")
@@ -102,6 +104,7 @@ class SkippedProblem(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     problem_id = Column(Integer, ForeignKey("problems.id"), nullable=False)
     skip_count = Column(Integer, default=1)  # Number of times skipped
+    feedback = Column(String, nullable=True)  # 'too_easy' or 'too_hard'
     skipped_at = Column(DateTime, default=datetime.utcnow)  # Last skip time
     
     # Relationships

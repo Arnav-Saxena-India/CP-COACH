@@ -197,20 +197,12 @@ def submit_solve(
     problem_id: int,
     handle: str = Query(..., description="Codeforces handle"),
     verdict: str = Query("AC", description="Verdict: 'AC' (Accepted) or 'WA' (Wrong Answer)"),
+    time_taken: int = Query(None, description="Time taken in seconds to solve"),
     db: Session = Depends(get_db)
 ):
     """
     Record a problem solve attempt with verdict.
-    The verdict affects future recommendations via the rating heuristic.
-    
-    Args:
-        problem_id: ID of the problem attempted
-        handle: Codeforces username
-        verdict: "AC" for accepted, "WA" for wrong answer
-        db: Database session (injected)
-        
-    Returns:
-        Success message with verdict recorded
+    Analyzes performance if time_taken is provided.
     """
     # Validate verdict
     if verdict not in ["AC", "WA"]:
@@ -225,17 +217,37 @@ def submit_solve(
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
+        
+    # AI Performance Analysis
+    is_slow = False
+    ai_advice = None
     
-    # Record solve with verdict
-    record_solve(db, db_user.id, problem_id, verdict)
+    if verdict == "AC" and time_taken:
+        from .ai_coach import analyze_performance
+        analysis = analyze_performance({
+            "rating": problem.rating,
+            "tags": problem.tags
+        }, time_taken)
+        is_slow = analysis.get("is_slow", False)
+        ai_advice = analysis.get("advice")
     
-    return {"message": f"Recorded {verdict} for '{problem.name}'"}
+    # Record solve
+    record_solve(db, db_user.id, problem_id, verdict, time_taken, is_slow)
+    
+    return {
+        "message": f"Recorded {verdict}", 
+        "ai_analysis": {
+            "is_slow": is_slow,
+            "advice": ai_advice
+        }
+    }
 
 
 @router.post("/skip/{problem_id}")
 def skip_problem(
     problem_id: int,
     handle: str = Query(..., description="Codeforces handle"),
+    feedback: str = Query(None, regex="^(too_easy|too_hard)$"),
     db: Session = Depends(get_db)
 ):
     """
@@ -284,10 +296,12 @@ def skip_problem(
     else:
         # First skip - mark as done immediately per user request
         # We record it as skipped, AND record as solved to remove from pool permanently
+        # But we pass the User Feedback to the DB for rating adjustment next time
         skip_record = SkippedProblem(
             user_id=db_user.id,
             problem_id=problem_id,
-            skip_count=1
+            skip_count=1,
+            feedback=feedback
         )
         db.add(skip_record)
         

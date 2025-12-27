@@ -23,6 +23,13 @@ const markSolvedBtn = document.getElementById('mark-solved');
 const solvedStatus = document.getElementById('solved-status');
 const dailyCounter = document.getElementById('daily-counter');
 
+// Timer Elements
+const timerDisplay = document.getElementById('timer-display');
+const timerToggle = document.getElementById('timer-toggle');
+let timerInterval = null;
+let timerSeconds = 0;
+let isTimerRunning = false;
+
 // Analysis Elements
 const viewAnalysisBtn = document.getElementById('view-analysis');
 const analysisView = document.getElementById('analysis-view');
@@ -283,6 +290,45 @@ function displayProblem(problem, targetRating) {
     solvedStatus.classList.add('hidden');
 
     resetButton();
+    resetButton();
+    resetTimer(); // Reset timer for new problem
+}
+
+// Timer Logic
+function resetTimer() {
+    clearInterval(timerInterval);
+    isTimerRunning = false;
+    timerSeconds = 0;
+    updateTimerUI();
+}
+
+function updateTimerUI() {
+    const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+    const secs = (timerSeconds % 60).toString().padStart(2, '0');
+    if (timerDisplay) timerDisplay.textContent = `${mins}:${secs}`;
+
+    if (timerToggle) {
+        timerToggle.textContent = isTimerRunning ? 'Stop Timer' : 'Start Timer';
+        timerToggle.classList.toggle('active', isTimerRunning);
+    }
+}
+
+if (timerToggle) {
+    timerToggle.addEventListener('click', () => {
+        if (isTimerRunning) {
+            // Stop
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+        } else {
+            // Start
+            isTimerRunning = true;
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                updateTimerUI();
+            }, 1000);
+        }
+        updateTimerUI();
+    });
 }
 
 /**
@@ -308,16 +354,30 @@ markSolvedBtn.addEventListener('click', async () => {
 
     try {
         // POST to backend /solve endpoint
-        const url = `${API_BASE_URL}/solve/${currentProblem.id}?handle=${encodeURIComponent(handle)}&verdict=AC`;
+        let url = `${API_BASE_URL}/solve/${currentProblem.id}?handle=${encodeURIComponent(handle)}&verdict=AC`;
+
+        // Add time if used (and non-zero)
+        if (timerSeconds > 0) {
+            url += `&time_taken=${timerSeconds}`;
+        }
+
         const res = await fetch(url, { method: 'POST' });
 
         if (!res.ok) {
             throw new Error('Failed to mark as solved');
         }
 
-        // Clear stored problem
+        const data = await res.json();
+
+        // Clear stored problem (and timer)
         await chrome.storage.sync.remove('currentProblem');
+        resetTimer();
         currentProblem = null;
+
+        // Check for AI advice (Too Slow)
+        if (data.ai_analysis && data.ai_analysis.is_slow && data.ai_analysis.advice) {
+            alert(`⚠️ Coach's Insight:\n\nThat took a bit longer than expected for this rating.\n\nTip: ${data.ai_analysis.advice}`);
+        }
 
         // Show brief success, then auto-fetch next problem
         markSolvedBtn.textContent = '✓ Marked!';
@@ -352,8 +412,23 @@ skipBtn.addEventListener('click', async () => {
     skipBtn.textContent = 'Skipping...';
 
     try {
+        // Or simpler: We assume users skip mostly because it's too hard unless they say otherwise?
+
+        // Let's use `confirm("Was this problem TOO EASY for you?")`
+        // YES -> too_easy -> +100
+        // NO -> We assume it was "Boring" or "Too Hard".
+        // Let's try a double confirm? No that's annoying.
+
+        // BEST MVP: Just Ask "Is this problem TOO EASY?"
+        let feedback = null;
+        if (confirm("Is this problem TOO EASY for you?\n\nClick OK for 'Too Easy' (I'll increase difficulty).\nClick Cancel for 'Too Hard/Boring' (I'll decrease/maintain difficulty).")) {
+            feedback = "too_easy";
+        } else {
+            feedback = "too_hard";
+        }
+
         // Call skip API endpoint
-        const url = `${API_BASE_URL}/skip/${currentProblem.id}?handle=${encodeURIComponent(handle)}`;
+        const url = `${API_BASE_URL}/skip/${currentProblem.id}?handle=${encodeURIComponent(handle)}&feedback=${feedback}`;
         const res = await fetch(url, { method: 'POST' });
 
         if (!res.ok) {

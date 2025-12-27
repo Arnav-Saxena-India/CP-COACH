@@ -61,35 +61,55 @@ def get_last_solve_verdict(db: Session, user_id: int) -> Optional[str]:
     return last_solve.verdict
 
 
-def calculate_target_rating(user_rating: int, last_verdict: Optional[str]) -> int:
+def calculate_target_rating(db: Session, user_id: int, current_rating: int) -> int:
     """
-    Calculate target problem rating based on user's last performance.
+    Calculate target rating based on LAST interaction (Solve OR Skip).
     
-    Heuristic:
-    - If last verdict == "AC": target = user_rating + 100
-    - Otherwise: target = user_rating - 50
-    - Clamp result to [800, 2400]
-    
-    Args:
-        user_rating: User's current Codeforces rating
-        last_verdict: "AC", "WA", or None
-        
-    Returns:
-        Target rating clamped to valid range
-        
-    # TODO: Integrate learning velocity here
-    # - Track solve times and adjust rating change magnitude
-    # - Faster solves = larger rating increase
+    Logic:
+    - Solve (AC) + Fast -> +100
+    - Solve (AC) + Slow -> +0 (Maintain)
+    - Skip (Too Easy) -> +100
+    - Skip (Too Hard) -> -100
+    - Default/Start -> current_rating
     """
-    if last_verdict == "AC":
-        target = user_rating + RATING_INCREASE_ON_AC
-    elif last_verdict == "WA":
-        target = user_rating - RATING_DECREASE_ON_WA
+    from .models import SolvedProblem, SkippedProblem
+    
+    # Get last solve
+    last_solve = db.query(SolvedProblem).filter(SolvedProblem.user_id == user_id).order_by(desc(SolvedProblem.solved_at)).first()
+    
+    # Get last skip
+    last_skip = db.query(SkippedProblem).filter(SkippedProblem.user_id == user_id).order_by(desc(SkippedProblem.skipped_at)).first()
+    
+    # Determine which was more recent
+    solve_time = last_solve.solved_at if last_solve else datetime.min
+    skip_time = last_skip.skipped_at if last_skip else datetime.min
+    
+    target = current_rating
+    
+    if solve_time > skip_time:
+        # Last action was a Solve
+        if last_solve.verdict == "AC":
+            # Check for slowness
+            if last_solve.is_slow_solve:
+                target += 0  # Maintain level to practice
+            else:
+                target += 100 # Standard progression
+        else:
+            target -= 50 # WA
+            
+    elif skip_time > solve_time:
+        # Last action was a Skip
+        if last_skip.feedback == "too_easy":
+            target += 100
+        elif last_skip.feedback == "too_hard":
+            target -= 100
+        else:
+             target += 0 # Neutral skip
+             
     else:
-        # No history: start at current rating
-        target = user_rating
-    
-    # Clamp to valid range
+        # No history
+        target = current_rating
+        
     return max(MIN_TARGET_RATING, min(MAX_TARGET_RATING, target))
 
 
@@ -284,9 +304,9 @@ def recommend_problems(
         - target_rating: The calculated target rating
         - message: Optional info message (e.g., fallback notification)
     """
-    # Step 1: Determine target difficulty
-    last_verdict = get_last_solve_verdict(db, user.id)
-    target_rating = calculate_target_rating(user.rating, last_verdict)
+    # Step 1: Determine target difficulty (Adaptive)
+    from datetime import datetime # Import needed for func
+    target_rating = calculate_target_rating(db, user.id, user.rating)
     
     # Step 2 & 3: Filter by topic and difficulty
     candidates = filter_problems_by_topic_and_difficulty(db, topic, target_rating)
@@ -295,22 +315,34 @@ def recommend_problems(
     solved_ids = get_solved_problem_ids(db, user.id)
     candidates = exclude_solved_problems(candidates, solved_ids)
     
-    # Step 4b: Exclude recently skipped problems (cooldown: 10 solves)
+    # Step 4b: Exclude recently skipped problems
     skipped_ids = get_recently_skipped_ids(db, user.id)
     candidates = [p for p in candidates if p.id not in skipped_ids]
     
     # Step 5: Rank and limit
-    recommendations = rank_problems_by_distance(candidates, target_rating)
+    # Get Top 5 candidates for AI selection
+    ranked_candidates = rank_problems_by_distance(candidates, target_rating, limit=5)
     
-    # If no problems found, try fallback to next easiest
+    # Step 6: AI Selection
+    # Convert to dicts first
+    candidate_dicts = problems_to_dicts_with_explanations(ranked_candidates, target_rating)
+    
+    from .ai_coach import select_best_problem
+    best_problem = select_best_problem(candidate_dicts, {
+        "rating": user.rating,
+        "weak_topics": [] # TODO: Pass real weak topics if available
+    })
+    
+    # Return as list (ensure at least 1)
+    final_recs = [best_problem] if best_problem else []
+    
+    # If no problems found, try fallback
     message = None
-    if not recommendations:
-        recommendations, message = _fallback_to_easiest(db, topic, solved_ids, target_rating)
+    if not final_recs:
+        recs, message = _fallback_to_easiest(db, topic, solved_ids, target_rating)
+        final_recs = problems_to_dicts_with_explanations(recs, target_rating)
     
-    # Convert ORM objects to dicts with explanations
-    explained_problems = problems_to_dicts_with_explanations(recommendations, target_rating)
-    
-    return explained_problems, target_rating, message
+    return final_recs, target_rating, message
 
 
 def problems_to_dicts_with_explanations(
@@ -382,20 +414,12 @@ def record_solve(
     db: Session,
     user_id: int,
     problem_id: int,
-    verdict: str = "AC"
+    verdict: str = "AC",
+    time_taken: Optional[int] = None,
+    is_slow: bool = False
 ) -> Optional[SolvedProblem]:
     """
-    Record a problem solve attempt with verdict.
-    Also updates skill tracking for AC solves.
-    
-    Args:
-        db: Database session
-        user_id: User's database ID
-        problem_id: Problem's database ID
-        verdict: "AC" (Accepted) or "WA" (Wrong Answer)
-        
-    Returns:
-        Created SolvedProblem instance, or None if already exists
+    Record a problem solve attempt.
     """
     # Check if already recorded
     existing = db.query(SolvedProblem).filter(
@@ -404,20 +428,22 @@ def record_solve(
     ).first()
     
     if existing:
-        # Update verdict if already exists
         existing.verdict = verdict
+        if time_taken:
+            existing.time_taken_seconds = time_taken
+            existing.is_slow_solve = is_slow
         db.commit()
         return existing
     
-    # Create new record
     solve_record = SolvedProblem(
         user_id=user_id,
         problem_id=problem_id,
-        verdict=verdict
+        verdict=verdict,
+        time_taken_seconds=time_taken,
+        is_slow_solve=is_slow
     )
     db.add(solve_record)
     
-    # Update skill tracking for AC solves only
     if verdict == "AC":
         problem = db.query(Problem).filter(Problem.id == problem_id).first()
         if problem:
@@ -425,7 +451,6 @@ def record_solve(
     
     db.commit()
     db.refresh(solve_record)
-    
     return solve_record
 
 
