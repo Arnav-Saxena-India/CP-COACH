@@ -56,6 +56,10 @@ async def lifespan(app: FastAPI):
     # Startup: Create tables
     Base.metadata.create_all(bind=engine)
     
+    # Run Schema Migrations (for SQLite updates on Render)
+    from .database import run_migrations
+    run_migrations(engine)
+    
     # Seed problems if database is empty or explicitly requested
     db = SessionLocal()
     try:

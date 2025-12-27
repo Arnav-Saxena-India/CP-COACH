@@ -42,3 +42,45 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def run_migrations(engine):
+    """
+    Simple migration script to update SQLite schema if columns are missing.
+    Useful for Render deployments where we can't easily run Alembic.
+    """
+    from sqlalchemy import text
+    import logging
+    
+    logger = logging.getLogger(__name__)
+
+    with engine.connect() as conn:
+        # Check solved_problems table
+        try:
+            # SQLite specific pragmas to check columns
+            columns = conn.execute(text("PRAGMA table_info(solved_problems)")).fetchall()
+            col_names = [col[1] for col in columns]
+            
+            if 'time_taken_seconds' not in col_names:
+                logger.info("Migrating: Adding time_taken_seconds to solved_problems")
+                conn.execute(text("ALTER TABLE solved_problems ADD COLUMN time_taken_seconds INTEGER"))
+                
+            if 'is_slow_solve' not in col_names:
+                logger.info("Migrating: Adding is_slow_solve to solved_problems")
+                conn.execute(text("ALTER TABLE solved_problems ADD COLUMN is_slow_solve BOOLEAN"))
+                
+        except Exception as e:
+            logger.warning(f"Migration check failed for solved_problems: {e}")
+
+        # Check skipped_problems table
+        try:
+            columns = conn.execute(text("PRAGMA table_info(skipped_problems)")).fetchall()
+            col_names = [col[1] for col in columns]
+            
+            if 'feedback' not in col_names:
+                logger.info("Migrating: Adding feedback to skipped_problems")
+                conn.execute(text("ALTER TABLE skipped_problems ADD COLUMN feedback VARCHAR"))
+                
+        except Exception as e:
+            logger.warning(f"Migration check failed for skipped_problems: {e}")
+            
+        conn.commit()
