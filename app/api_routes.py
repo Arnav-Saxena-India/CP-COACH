@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User, Problem
 from .schemas import UserResponse, RecommendationResponse, ProblemResponse
-from .recommender import recommend_problems, record_solve
+from .recommender import recommend_problems, record_solve, sync_user_solved_history
 
 # Create router instance
 router = APIRouter()
@@ -88,34 +88,23 @@ def get_user(handle: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
     
-    # Sync recent solves from Codeforces to update daily counter
+    # Sync recent solves from Codeforces
     try:
         from .weakness_analysis import fetch_user_submissions
-        recent_subs = fetch_user_submissions(handle, count=10) # Fetch last 10 is enough for "today" check efficiently
+        from .recommender import sync_user_solved_history
         
-        # Check for solves today
-        from datetime import datetime
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        # Fetch significant history to ensure we exclude all solved problems
+        # 1000 is a reasonable balance between speed and coverage for most active users
+        recent_subs = fetch_user_submissions(handle, count=1000) 
         
-        for sub in recent_subs:
-            # Check if AC and today
-            if sub.get("verdict") == "OK":
-                creation_time = datetime.fromtimestamp(sub.get("creationTimeSeconds", 0))
-                if creation_time >= today_start:
-                    # Try to record it
-                    contest_id = sub.get("contestId")
-                    index = sub.get("problem", {}).get("index")
-                    
-                    if contest_id and index:
-                        # Find local problem
-                        local_prob = db.query(Problem).filter(
-                            Problem.contest_id == contest_id,
-                            Problem.problem_index == index
-                        ).first()
-                        
-                        if local_prob:
-                            # Record solve
-                            record_solve(db, db_user.id, local_prob.id, "AC")
+        if recent_subs:
+            # Full sync (SolvedProblem + UserSkill max rating)
+            sync_user_solved_history(db, db_user.id, recent_subs)
+            
+            # We don't need the manual "check for solves today" block anymore 
+            # because sync_user_solved_history handles all SolvedProblem entries with correct timestamps.
+            # But we DO need to ensure daily count calculation is still correct below.
+            
     except Exception as e:
         print(f"Sync error (non-fatal): {e}")
 
@@ -458,10 +447,15 @@ def get_weakness_analysis(
     
     # Sync contest submissions if requested
     if sync:
-        submissions = fetch_user_submissions(handle, count=200)
+        submissions = fetch_user_submissions(handle, count=500) # Increased count for better sync
         if submissions:
+             # Sync contest stats (for weakness analysis)
             sync_contest_stats(db, db_user, submissions)
-    
+            
+            # Sync solved history (for recommender and exclusion)
+            from .recommender import sync_user_solved_history
+            sync_user_solved_history(db, db_user.id, submissions)
+            
     # Get total stats for summary
     total_stats = db.query(UserContestProblemStat).filter(
         UserContestProblemStat.user_id == db_user.id,

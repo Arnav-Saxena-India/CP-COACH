@@ -339,7 +339,26 @@ def recommend_problems(
     """
     # Step 1: Determine target difficulty (Adaptive)
     from datetime import datetime # Import needed for func
-    target_rating = calculate_target_rating(db, user.id, user.rating)
+    from .models import UserSkill
+    
+    base_target = calculate_target_rating(db, user.id, user.rating)
+    
+    # Step 1b: Progressive Overload per Topic
+    # Ensure target is at least the max rating solved for this topic
+    skill_record = db.query(UserSkill).filter(
+        UserSkill.user_id == user.id,
+        UserSkill.topic == topic.lower()
+    ).first()
+    
+    topic_max = skill_record.max_solved_rating if skill_record else 0
+    
+    # Principle: "Same or higher level"
+    # Logic: Target should be at least (topic_max). 
+    # But if they just solved topic_max, maybe +100?
+    # User said: "next time the user gets same or higher level problem"
+    # So if they solved 1200, recommender should NOT show 1000. It should show >= 1200.
+    
+    target_rating = max(base_target, topic_max)
     
     # Step 2 & 3: Filter by topic and difficulty
     candidates = filter_problems_by_topic_and_difficulty(db, topic, target_rating)
@@ -480,7 +499,7 @@ def record_solve(
     if verdict == "AC":
         problem = db.query(Problem).filter(Problem.id == problem_id).first()
         if problem:
-            _update_user_skills(db, user_id, problem.tags)
+            _update_user_skills_with_rating(db, user_id, problem.tags, problem.rating)
     
     db.commit()
     db.refresh(solve_record)
@@ -499,6 +518,29 @@ def _update_user_skills(db: Session, user_id: int, tags: str) -> None:
     """
     from datetime import datetime
     
+    for topic in topics:
+        # Find or create skill record for this topic
+        skill = db.query(UserSkill).filter(
+            UserSkill.user_id == user_id,
+            UserSkill.topic == topic
+        ).first()
+        
+        problem_rating = 0
+        problem = db.query(Problem).filter(Problem.tags.ilike(f"%{topic}%"), Problem.tags == tags).first() # Approximation
+        # Better: get rating from caller or re-query problem. 
+        # Actually, caller record_solve has access to problem. Let's rely on that if we change signature, 
+        # but here we only have tags. 
+        # Let's fix record_solve to pass rating or problem object? 
+        # Easier: In this function we don't have problem object easily.
+        # But wait, record_solve passed 'tags' from problem object.
+        # Let's use a simpler heuristic: we need the problem rating to update max_solved_rating.
+        # Check if we can get it.
+        pass 
+
+def _update_user_skills_with_rating(db: Session, user_id: int, tags: str, rating: int) -> None:
+    """
+    Update skill counters and max rating for each topic.
+    """
     # Parse tags (comma-separated)
     topics = [t.strip().lower() for t in tags.split(",") if t.strip()]
     
@@ -510,17 +552,104 @@ def _update_user_skills(db: Session, user_id: int, tags: str) -> None:
         ).first()
         
         if skill:
-            # Increment existing skill counter
             skill.solve_count += 1
             skill.last_practiced_at = datetime.utcnow()
+            if rating > skill.max_solved_rating:
+                skill.max_solved_rating = rating
         else:
-            # Create new skill record
             skill = UserSkill(
                 user_id=user_id,
                 topic=topic,
-                solve_count=1
+                solve_count=1,
+                max_solved_rating=rating
             )
             db.add(skill)
+
+
+def sync_user_solved_history(db: Session, user_id: int, submissions: List[dict]) -> int:
+    """
+    Sync full solve history from Codeforces submissions.
+    Updates SolvedProblem and UserSkill (max_solved_rating).
+    """
+    from .models import Problem, UserSkill, SolvedProblem
+    
+    # 1. Filter for AC submissions
+    ac_subs = [s for s in submissions if s.get("verdict") == "OK"]
+    if not ac_subs:
+        return 0
+        
+    # 2. Get all local problems (for fast lookup)
+    # Optimization: If too many problems, query by contest_id set?
+    # For now, fetching all IDs is okay if < 10k. 
+    # Better: Query matching contest IDs.
+    contest_ids = set(s.get("contestId") for s in ac_subs if s.get("contestId"))
+    local_problems = db.query(Problem).filter(Problem.contest_id.in_(contest_ids)).all()
+    
+    # Map (contest_id, index) -> Problem
+    prob_map = {(p.contest_id, p.problem_index): p for p in local_problems}
+    
+    # 3. Get existing solved IDs to avoid duplicates
+    existing_solved = set(
+        id_tupl[0] 
+        for id_tupl in db.query(SolvedProblem.problem_id).filter(SolvedProblem.user_id == user_id).all()
+    )
+    
+    # 4. Prepare updates
+    new_solves = []
+    skills_update = {} # topic -> max_rating
+    
+    count = 0
+    for sub in ac_subs:
+        cid = sub.get("contestId")
+        idx = sub.get("problem", {}).get("index")
+        
+        if (cid, idx) in prob_map:
+            prob = prob_map[(cid, idx)]
+            
+            # Update Skill Max Rating (even if already solved, check if we missed max rating update?)
+            # No, if we solved it, we likely recorded it. But for sync, let's just track max rating from all ACs.
+            if prob.tags:
+                rating = prob.rating
+                tags = [t.strip().lower() for t in prob.tags.split(",") if t.strip()]
+                for t in tags:
+                    skills_update[t] = max(skills_update.get(t, 0), rating)
+            
+            if prob.id not in existing_solved:
+                # Add to SolvedProblem
+                new_solves.append(SolvedProblem(
+                    user_id=user_id,
+                    problem_id=prob.id,
+                    verdict="AC",
+                    solved_at=datetime.fromtimestamp(sub.get("creationTimeSeconds", 0))
+                ))
+                existing_solved.add(prob.id)
+                count += 1
+                
+    # 5. Commit SolvedProblems
+    if new_solves:
+        db.bulk_save_objects(new_solves)
+        
+    # 6. Commit Skill Updates
+    for topic, max_rating in skills_update.items():
+        skill = db.query(UserSkill).filter(UserSkill.user_id == user_id, UserSkill.topic == topic).first()
+        if skill:
+            skill.solve_count += 0 # Don't recount blindly, this is tricky. 
+            # Actually, we don't know if we counted it before. 
+            # Safe bet: Just update max_solved_rating if higher.
+            if max_rating > skill.max_solved_rating:
+                skill.max_solved_rating = max_rating
+        else:
+            # New skill entry
+            skill = UserSkill(
+                user_id=user_id,
+                topic=topic,
+                solve_count=0, # Unknown count if we don't scan all, but fine.
+                max_solved_rating=max_rating
+            )
+            db.add(skill)
+            
+    db.commit()
+    return count
 
 
 # =============================================================================

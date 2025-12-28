@@ -87,6 +87,7 @@ class UserSkill(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     topic = Column(String, nullable=False, index=True)  # e.g., "dp", "graphs"
     solve_count = Column(Integer, default=0)  # Number of AC solves for this topic
+    max_solved_rating = Column(Integer, default=0) # Maximum rating solved for this topic
     last_practiced_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationship to user

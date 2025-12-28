@@ -82,5 +82,17 @@ def run_migrations(engine):
                 
         except Exception as e:
             logger.warning(f"Migration check failed for skipped_problems: {e}")
+
+        # Check user_skills table
+        try:
+            columns = conn.execute(text("PRAGMA table_info(user_skills)")).fetchall()
+            col_names = [col[1] for col in columns]
+            
+            if 'max_solved_rating' not in col_names:
+                logger.info("Migrating: Adding max_solved_rating to user_skills")
+                conn.execute(text("ALTER TABLE user_skills ADD COLUMN max_solved_rating INTEGER DEFAULT 0"))
+                
+        except Exception as e:
+            logger.warning(f"Migration check failed for user_skills: {e}")
             
         conn.commit()
