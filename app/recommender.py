@@ -313,7 +313,8 @@ def rank_problems_by_distance(
 def recommend_problems(
     db: Session,
     user: User,
-    topic: str
+    topic: str,
+    rating_offset: int = 0
 ) -> Tuple[List[Problem], int, Optional[str]]:
     """
     Generate problem recommendations for a user.
@@ -330,6 +331,7 @@ def recommend_problems(
         db: Database session
         user: User requesting recommendations
         topic: Selected topic/tag to filter by
+        rating_offset: Manual adjustment to target rating (default 0)
         
     Returns:
         Tuple of (problems, target_rating, message)
@@ -359,6 +361,10 @@ def recommend_problems(
     # So if they solved 1200, recommender should NOT show 1000. It should show >= 1200.
     
     target_rating = max(base_target, topic_max)
+    
+    # Step 1c: Apply manual rating offset (for user-controlled adjustment)
+    target_rating = target_rating + rating_offset
+    target_rating = max(MIN_TARGET_RATING, min(MAX_TARGET_RATING, target_rating))
     
     # Step 2 & 3: Filter by topic and difficulty
     candidates = filter_problems_by_topic_and_difficulty(db, topic, target_rating)

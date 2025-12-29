@@ -106,7 +106,13 @@
       <div id="error" class="error hidden"></div>
 
       <div id="problem" class="problem hidden">
-        <h2 id="problem-name" class="problem-name"></h2>
+        <div class="problem-header">
+          <h2 id="problem-name" class="problem-name"></h2>
+          <div class="rating-adjust-btns">
+            <button id="rating-lower" class="btn-rating-adjust" title="Lower difficulty">▼</button>
+            <button id="rating-higher" class="btn-rating-adjust" title="Higher difficulty">▲</button>
+          </div>
+        </div>
         <p class="problem-rating">Rating: <span id="problem-rating"></span></p>
         <p class="problem-explanation" id="problem-explanation"></p>
 

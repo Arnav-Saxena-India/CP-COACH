@@ -68,6 +68,50 @@ refreshUpsolveBtn.addEventListener('click', () => {
 // Current problem data (for Mark as Solved)
 let currentProblem = null;
 
+// Rating adjustment buttons
+const ratingLowerBtn = document.getElementById('rating-lower');
+const ratingHigherBtn = document.getElementById('rating-higher');
+
+// User's manual rating offset (persisted in storage)
+let userRatingOffset = 0;
+
+// Load rating offset on startup
+(async function loadRatingOffset() {
+    const stored = await chrome.storage.sync.get(['ratingOffset']);
+    if (stored.ratingOffset !== undefined) {
+        userRatingOffset = stored.ratingOffset;
+    }
+})();
+
+// Rating adjustment button handlers
+if (ratingLowerBtn) {
+    ratingLowerBtn.addEventListener('click', async () => {
+        userRatingOffset -= 100;
+        await chrome.storage.sync.set({ ratingOffset: userRatingOffset });
+
+        // Fetch new problem with lowered target rating
+        const handle = handleInput.value.trim();
+        const topic = topicSelect.value;
+        if (handle) {
+            await fetchRecommendation(handle, topic);
+        }
+    });
+}
+
+if (ratingHigherBtn) {
+    ratingHigherBtn.addEventListener('click', async () => {
+        userRatingOffset += 100;
+        await chrome.storage.sync.set({ ratingOffset: userRatingOffset });
+
+        // Fetch new problem with higher target rating
+        const handle = handleInput.value.trim();
+        const topic = topicSelect.value;
+        if (handle) {
+            await fetchRecommendation(handle, topic);
+        }
+    });
+}
+
 /**
  * Initialize popup on load
  */
@@ -201,8 +245,11 @@ async function fetchRecommendation(handle, topic) {
             throw new Error(errMsg);
         }
 
-        // Fetch recommendation
-        const url = `${API_BASE_URL}/extension/recommend?handle=${encodeURIComponent(handle)}&topic=${encodeURIComponent(topic)}`;
+        // Fetch recommendation (include rating offset if set)
+        let url = `${API_BASE_URL}/extension/recommend?handle=${encodeURIComponent(handle)}&topic=${encodeURIComponent(topic)}`;
+        if (userRatingOffset !== 0) {
+            url += `&rating_offset=${userRatingOffset}`;
+        }
         const res = await fetch(url);
 
         if (!res.ok) {

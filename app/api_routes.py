@@ -337,6 +337,7 @@ def list_problems(
 def extension_recommend(
     handle: str = Query(..., description="Codeforces handle"),
     topic: str = Query(..., description="Topic/tag to filter problems"),
+    rating_offset: int = Query(0, description="Manual rating adjustment (-100 for easier, +100 for harder)"),
     db: Session = Depends(get_db)
 ):
     """
@@ -352,6 +353,7 @@ def extension_recommend(
     Args:
         handle: Codeforces username
         topic: Topic/tag to filter problems
+        rating_offset: Manual adjustment to target rating (default 0)
         db: Database session (injected)
         
     Returns:
@@ -366,8 +368,8 @@ def extension_recommend(
             detail=f"User '{handle}' not found. Please register first using GET /user/{handle}"
         )
     
-    # Reuse existing recommendation logic - no duplication
-    problems, target_rating, message = recommend_problems(db, db_user, topic)
+    # Reuse existing recommendation logic - with rating offset applied
+    problems, target_rating, message = recommend_problems(db, db_user, topic, rating_offset=rating_offset)
     
     # Calculate daily solved count
     from datetime import datetime
