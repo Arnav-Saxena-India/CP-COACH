@@ -19,4 +19,4 @@ This privacy policy may be updated in the future. Any changes will be reflected 
 
 Contact:
 If you have any questions about this privacy policy, you may contact the developer at:
-Email: your-email@example.com
+Email: arnav01.pvt@gmail.com
