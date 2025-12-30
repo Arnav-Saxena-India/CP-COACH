@@ -5,6 +5,7 @@ This module implements a rating-aware, topic-sensitive problem recommendation
 system using heuristic-based logic.
 
 Design Principles:
+- Deterministic: Same input always produces same output
 - Rating-aware: Adjusts difficulty based on user performance
 - Topic-sensitive: Filters problems by selected topic
 - Extensible: Ready for skill graph and learning velocity integration
@@ -16,6 +17,15 @@ from sqlalchemy import desc
 from datetime import datetime
 
 from .models import User, Problem, SolvedProblem, UserSkill
+from .config import (
+    DIFFICULTY_WINDOW,
+    RECOMMENDATION_LIMIT,
+    RATING_INCREASE_ON_AC,
+    RATING_DECREASE_ON_WA,
+    SKIP_COOLDOWN_COUNT,
+    MAX_RECOMMENDATIONS_PER_TOPIC,
+    normalize_tags,
+)
 
 
 # =============================================================================
@@ -25,16 +35,6 @@ from .models import User, Problem, SolvedProblem, UserSkill
 # Rating bounds for target difficulty clamping
 MIN_TARGET_RATING = 800
 MAX_TARGET_RATING = 2400
-
-# Difficulty window: how far from target rating to search
-DIFFICULTY_WINDOW = 150
-
-# Number of problems to recommend
-RECOMMENDATION_LIMIT = 3
-
-# Rating adjustments based on last verdict
-RATING_INCREASE_ON_AC = 100
-RATING_DECREASE_ON_WA = 50
 
 
 # =============================================================================
@@ -223,8 +223,7 @@ def exclude_solved_problems(
     return [p for p in problems if p.id not in solved_ids]
 
 
-# Number of problems to solve before re-showing a skipped problem
-SKIP_COOLDOWN_COUNT = 10
+# Skip cooldown imported from config
 
 
 def get_recently_skipped_ids(db: Session, user_id: int) -> List[int]:
@@ -291,16 +290,13 @@ def rank_problems_by_distance(
     # - Problem popularity/quality score
     # - Time since last attempt on similar problems
     """
-    # MVP ranking: prioritize closeness to target difficulty
-    # Future: add problem quality, recency, pattern similarity
-    
-    # SHUFFLE first to break stability of sort (avoid showing same old problems)
-    import random
-    random.shuffle(problems)
+    # Deterministic ranking: prioritize closeness to target difficulty
+    # Use problem ID as secondary sort key for stable, reproducible ordering
+    # This ensures same user gets same results within cache TTL
     
     sorted_problems = sorted(
         problems,
-        key=lambda p: abs(p.rating - target_rating)
+        key=lambda p: (abs(p.rating - target_rating), p.id)
     )
     
     return sorted_problems[:limit]

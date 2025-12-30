@@ -1,11 +1,44 @@
 /**
  * CP Coach Chrome Extension
  * Optimized for daily use with minimal friction
+ * 
+ * Features:
+ * - UI State Machine (idle/loading/success/error/empty)
+ * - Input debouncing (500ms)
+ * - Request locking (prevents duplicate requests)
+ * - Local caching of last successful analysis
+ * - Handle format validation
  */
 
-const API_BASE_URL = 'https://cp-coach-backend.onrender.com';
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
 
-// DOM Elements
+const API_BASE_URL = 'https://cp-coach-backend.onrender.com';
+const API_V1_URL = `${API_BASE_URL}/api/v1`;  // New versioned API
+const DEBOUNCE_DELAY = 500;  // ms
+const HANDLE_PATTERN = /^[a-zA-Z0-9_-]{3,24}$/;
+
+// =============================================================================
+// UI STATE MACHINE
+// =============================================================================
+
+const UIState = {
+    IDLE: 'idle',
+    LOADING: 'loading',
+    SUCCESS: 'success',
+    ERROR: 'error',
+    EMPTY: 'empty'
+};
+
+let currentUIState = UIState.IDLE;
+let isRequestPending = false;  // Prevents duplicate requests
+let debounceTimer = null;
+
+// =============================================================================
+// DOM ELEMENTS
+// =============================================================================
+
 const handleInput = document.getElementById('handle');
 const handleStatus = document.getElementById('handle-status');
 const topicSelect = document.getElementById('topic');
@@ -28,8 +61,7 @@ const timerDisplay = document.getElementById('timer-display');
 const timerToggle = document.getElementById('timer-toggle');
 const timerPause = document.getElementById('timer-pause');
 let timerInterval = null;
-let timerSeconds = 0; // Displayed seconds
-// Timer State for Persistence
+let timerSeconds = 0;
 let timerState = {
     isRunning: false,
     startTime: null,
@@ -49,50 +81,140 @@ const refreshUpsolveBtn = document.getElementById('refresh-upsolve');
 const backToHomeBtn = document.getElementById('back-to-home');
 const inputSection = document.querySelector('.input-section');
 
-// ... (existing code)
+// Current problem data
+let currentProblem = null;
+
+// =============================================================================
+// VALIDATION & UTILITIES
+// =============================================================================
+
+/**
+ * Validate CF handle format
+ */
+function validateHandle(handle) {
+    if (!handle) return { valid: false, error: 'Handle cannot be empty' };
+    if (handle.length < 3) return { valid: false, error: 'Handle too short (min 3 chars)' };
+    if (handle.length > 24) return { valid: false, error: 'Handle too long (max 24 chars)' };
+    if (!HANDLE_PATTERN.test(handle)) {
+        return { valid: false, error: 'Invalid characters in handle' };
+    }
+    return { valid: true, error: null };
+}
+
+/**
+ * Debounce function
+ */
+function debounce(func, delay) {
+    return function (...args) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
+/**
+ * Set UI state with appropriate rendering
+ */
+function setUIState(state, data = {}) {
+    currentUIState = state;
+
+    resultSection.classList.remove('hidden');
+    loadingEl.classList.add('hidden');
+    errorEl.classList.add('hidden');
+    problemEl.classList.add('hidden');
+
+    switch (state) {
+        case UIState.IDLE:
+            resultSection.classList.add('hidden');
+            resetButton();
+            break;
+
+        case UIState.LOADING:
+            loadingEl.classList.remove('hidden');
+            // Show skeleton instead of just spinner
+            loadingEl.innerHTML = `
+                <div class="skeleton-loader">
+                    <div class="skeleton-line skeleton-title"></div>
+                    <div class="skeleton-line skeleton-rating"></div>
+                    <div class="skeleton-line skeleton-text"></div>
+                </div>
+            `;
+            nextButton.disabled = true;
+            nextButton.textContent = 'Finding...';
+            break;
+
+        case UIState.SUCCESS:
+            problemEl.classList.remove('hidden');
+            resetButton();
+            break;
+
+        case UIState.ERROR:
+            errorEl.classList.remove('hidden');
+            errorEl.innerHTML = `
+                <div class="error-message">
+                    <span>${data.message || 'An error occurred'}</span>
+                    ${data.retryable ? '<button class="retry-btn" onclick="retryLastRequest()">Retry</button>' : ''}
+                </div>
+            `;
+            resetButton();
+            break;
+
+        case UIState.EMPTY:
+            errorEl.classList.remove('hidden');
+            errorEl.textContent = data.message || 'No problems found';
+            resetButton();
+            break;
+    }
+}
+
+// Store last request for retry
+let lastRequestParams = null;
+
+function retryLastRequest() {
+    if (lastRequestParams) {
+        fetchRecommendation(lastRequestParams.handle, lastRequestParams.topic);
+    }
+}
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
 
 // Add listener for refresh button
-refreshUpsolveBtn.addEventListener('click', () => {
-    // Add simple rotation animation
-    refreshUpsolveBtn.style.transform = 'rotate(360deg)';
-    setTimeout(() => refreshUpsolveBtn.style.transform = '', 500);
-
-    fetchAnalysis(true);
-});
-
-// Update fetchRecommendation to show daily count
-// This function is inside fetchRecommendation, need to locate that separately
-// Instead, I'll modify the relevant parts separately to avoid context errors.
-// This block just adds the elements and refresh listener logic.
-
-// Current problem data (for Mark as Solved)
-let currentProblem = null;
+if (refreshUpsolveBtn) {
+    refreshUpsolveBtn.addEventListener('click', () => {
+        refreshUpsolveBtn.style.transform = 'rotate(360deg)';
+        setTimeout(() => refreshUpsolveBtn.style.transform = '', 500);
+        fetchAnalysis(true);
+    });
+}
 
 // Rating adjustment buttons
 const ratingLowerBtn = document.getElementById('rating-lower');
 const ratingHigherBtn = document.getElementById('rating-higher');
-
-// User's manual rating offset (persisted in storage)
 let userRatingOffset = 0;
 
-// Load rating offset on startup
-(async function loadRatingOffset() {
+// Load rating offset and cached data on startup
+(async function initializeExtension() {
     const stored = await chrome.storage.sync.get(['ratingOffset']);
     if (stored.ratingOffset !== undefined) {
         userRatingOffset = stored.ratingOffset;
     }
+
+    // Load cached analysis for instant display
+    const cachedAnalysis = await chrome.storage.local.get(['lastAnalysis']);
+    if (cachedAnalysis.lastAnalysis) {
+        // Analysis is cached, can be shown instantly on reopen
+    }
 })();
 
-// Rating adjustment button handlers
+// Rating adjustment handlers with validation
 if (ratingLowerBtn) {
     ratingLowerBtn.addEventListener('click', async () => {
         userRatingOffset -= 100;
         await chrome.storage.sync.set({ ratingOffset: userRatingOffset });
-
-        // Fetch new problem with lowered target rating
         const handle = handleInput.value.trim();
         const topic = topicSelect.value;
-        if (handle) {
+        if (handle && !isRequestPending) {
             await fetchRecommendation(handle, topic);
         }
     });
@@ -102,36 +224,50 @@ if (ratingHigherBtn) {
     ratingHigherBtn.addEventListener('click', async () => {
         userRatingOffset += 100;
         await chrome.storage.sync.set({ ratingOffset: userRatingOffset });
-
-        // Fetch new problem with higher target rating
         const handle = handleInput.value.trim();
         const topic = topicSelect.value;
-        if (handle) {
+        if (handle && !isRequestPending) {
             await fetchRecommendation(handle, topic);
         }
     });
+}
+
+// Handle input validation with debounce
+if (handleInput) {
+    handleInput.addEventListener('input', debounce(async () => {
+        const handle = handleInput.value.trim();
+        const validation = validateHandle(handle);
+
+        if (!handle) {
+            handleStatus.textContent = '';
+            handleStatus.className = '';
+        } else if (!validation.valid) {
+            handleStatus.textContent = '✗ ' + validation.error;
+            handleStatus.className = 'status-error';
+        } else {
+            handleStatus.textContent = '✓ Valid format';
+            handleStatus.className = 'status-ok';
+        }
+    }, DEBOUNCE_DELAY));
 }
 
 /**
  * Initialize popup on load
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Try to auto-detect handle from active tab
     await tryAutoDetectHandle();
 
-    // Load saved topic preference
     const stored = await chrome.storage.sync.get(['lastTopic', 'currentProblem']);
     if (stored.lastTopic) {
         topicSelect.value = stored.lastTopic;
     }
 
-    // Restore current problem if exists (persist across popup reopens)
+    // Restore current problem instantly from cache
     if (stored.currentProblem) {
         currentProblem = stored.currentProblem;
         displayProblem(currentProblem, stored.currentProblem.targetRating || 0);
     }
 
-    // Restore timer state
     restoreTimerState();
 });
 

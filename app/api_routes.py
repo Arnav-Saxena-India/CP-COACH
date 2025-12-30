@@ -4,6 +4,7 @@ Defines endpoints for user management and problem recommendations.
 """
 
 import requests
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -11,12 +12,14 @@ from .database import get_db
 from .models import User, Problem
 from .schemas import UserResponse, RecommendationResponse, ProblemResponse
 from .recommender import recommend_problems, record_solve, sync_user_solved_history
+from .validation import validate_cf_handle, validate_topic, sanitize_handle, sanitize_topic
+from .errors import InvalidHandleError, HandleNotFoundError, ValidationError
+from .config import CF_API_BASE_URL
+
+logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter()
-
-# Codeforces API base URL
-CODEFORCES_API_URL = "https://codeforces.com/api"
 
 
 def fetch_codeforces_user(handle: str) -> dict:
@@ -32,23 +35,28 @@ def fetch_codeforces_user(handle: str) -> dict:
     Raises:
         HTTPException: If user not found or API error
     """
+    # Validate handle format
+    is_valid, error_msg = validate_cf_handle(handle)
+    if not is_valid:
+        raise InvalidHandleError(handle)
+    
+    handle = sanitize_handle(handle)
+    
     try:
         response = requests.get(
-            f"{CODEFORCES_API_URL}/user.info",
+            f"{CF_API_BASE_URL}/user.info",
             params={"handles": handle},
             timeout=10
         )
         data = response.json()
         
         if data.get("status") != "OK":
-            raise HTTPException(
-                status_code=404,
-                detail=f"User '{handle}' not found on Codeforces"
-            )
+            raise HandleNotFoundError(handle)
         
         return data["result"][0]
     
     except requests.RequestException as e:
+        logger.error(f"CF API request failed: {e}")
         raise HTTPException(
             status_code=503,
             detail=f"Failed to connect to Codeforces API: {str(e)}"

@@ -290,6 +290,76 @@ body {
     border: 1px solid #7f1d1d;
 }
 
+.error-message {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.retry-btn {
+    background: #7f1d1d;
+    color: #fca5a5;
+    border: 1px solid #991b1b;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    background: #991b1b;
+}
+
+/* Skeleton Loader */
+.skeleton-loader {
+    padding: 8px 0;
+}
+
+.skeleton-line {
+    background: linear-gradient(90deg, #2d2d2d 25%, #3d3d3d 50%, #2d2d2d 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.skeleton-title {
+    height: 18px;
+    width: 80%;
+}
+
+.skeleton-rating {
+    height: 14px;
+    width: 40%;
+}
+
+.skeleton-text {
+    height: 12px;
+    width: 100%;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Handle Status Styles */
+.status-ok {
+    color: #34d399 !important;
+}
+
+.status-error {
+    color: #f87171 !important;
+}
+
 /* Problem Card */
 .problem {
     padding: 0;
@@ -337,11 +407,13 @@ body {
 }
 
 #rating-lower:hover {
-    color: #f87171; /* Red for lower */
+    color: #f87171;
+    /* Red for lower */
 }
 
 #rating-higher:hover {
-    color: #34d399; /* Green for higher */
+    color: #34d399;
+    /* Green for higher */
 }
 
 .problem-rating {

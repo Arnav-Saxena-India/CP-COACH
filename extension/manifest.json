@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "CP Coach",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Get personalized competitive programming problem recommendations",
     "action": {
         "default_popup": "popup.html",
