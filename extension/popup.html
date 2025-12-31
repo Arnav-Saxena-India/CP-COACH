@@ -12,9 +12,28 @@
   <div class="container">
     <!-- Header -->
     <header class="header">
+      <button id="change-mode" class="change-mode-btn hidden" title="Change Mode">⚙</button>
       <h1>CP Coach</h1>
       <div id="daily-counter" class="daily-badge">Daily: --</div>
     </header>
+
+    <!-- Mode Selection Screen -->
+    <section id="mode-selection" class="mode-section">
+      <h2>Choose Your Mode</h2>
+      <div class="mode-buttons">
+        <button id="mode-doing" class="mode-btn mode-doing">
+          <span class="mode-icon">🎯</span>
+          <span class="mode-title">Doing</span>
+          <span class="mode-desc">Auto-detect problem from CF link</span>
+        </button>
+        <button id="mode-random" class="mode-btn mode-random">
+          <span class="mode-icon">🎲</span>
+          <span class="mode-title">Random Solve</span>
+          <span class="mode-desc">Practice random problems</span>
+        </button>
+      </div>
+    </section>
+
 
     <!-- Input Section -->
     <section class="input-section">

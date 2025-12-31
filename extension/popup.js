@@ -31,6 +31,9 @@ const UIState = {
     EMPTY: 'empty'
 };
 
+// Mode state: 'doing' | 'random' | null
+let currentMode = null;
+
 let currentUIState = UIState.IDLE;
 let isRequestPending = false;  // Prevents duplicate requests
 let debounceTimer = null;
@@ -81,8 +84,17 @@ const refreshUpsolveBtn = document.getElementById('refresh-upsolve');
 const backToHomeBtn = document.getElementById('back-to-home');
 const inputSection = document.querySelector('.input-section');
 
+// Mode Selection Elements
+const modeSection = document.getElementById('mode-selection');
+const modeDoingBtn = document.getElementById('mode-doing');
+const modeRandomBtn = document.getElementById('mode-random');
+const changeModeBtn = document.getElementById('change-mode');
+
 // Current problem data
 let currentProblem = null;
+
+// Detected problem from URL (for Doing mode)
+let detectedProblem = null;
 
 // =============================================================================
 // VALIDATION & UTILITIES
@@ -255,21 +267,183 @@ if (handleInput) {
  * Initialize popup on load
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    await tryAutoDetectHandle();
+    // Load saved mode
+    const stored = await chrome.storage.sync.get(['selectedMode', 'lastTopic', 'currentProblem', 'cfHandle']);
 
-    const stored = await chrome.storage.sync.get(['lastTopic', 'currentProblem']);
+    if (stored.selectedMode) {
+        // User has previously selected a mode
+        currentMode = stored.selectedMode;
+        await initializeMode(currentMode);
+    } else {
+        // Show mode selection screen
+        showModeSelection();
+    }
+
     if (stored.lastTopic) {
         topicSelect.value = stored.lastTopic;
     }
 
-    // Restore current problem instantly from cache
-    if (stored.currentProblem) {
+    // Restore current problem instantly from cache (only for random mode)
+    if (stored.currentProblem && currentMode === 'random') {
         currentProblem = stored.currentProblem;
         displayProblem(currentProblem, stored.currentProblem.targetRating || 0);
     }
 
     restoreTimerState();
 });
+
+/**
+ * Show mode selection screen
+ */
+function showModeSelection() {
+    modeSection.classList.remove('hidden');
+    inputSection.classList.add('hidden');
+    resultSection.classList.add('hidden');
+    analysisView.classList.add('hidden');
+    changeModeBtn.classList.add('hidden');
+}
+
+/**
+ * Initialize the selected mode
+ */
+async function initializeMode(mode) {
+    currentMode = mode;
+    await chrome.storage.sync.set({ selectedMode: mode });
+
+    modeSection.classList.add('hidden');
+    changeModeBtn.classList.remove('hidden');
+
+    if (mode === 'doing') {
+        await initializeDoingMode();
+    } else {
+        await initializeRandomMode();
+    }
+}
+
+/**
+ * Initialize Doing Mode - auto-detect problem from active tab
+ */
+async function initializeDoingMode() {
+    // Hide topic selector in doing mode
+    inputSection.classList.remove('hidden');
+    topicSelect.parentElement.classList.add('hidden');
+    viewAnalysisBtn.classList.add('hidden');
+
+    // Update button text
+    nextButton.textContent = 'FIND SIMILAR';
+
+    // Try to detect problem from active tab
+    await tryAutoDetectHandle();
+    await tryAutoDetectProblem();
+}
+
+/**
+ * Initialize Random Mode - standard behavior
+ */
+async function initializeRandomMode() {
+    inputSection.classList.remove('hidden');
+    topicSelect.parentElement.classList.remove('hidden');
+    viewAnalysisBtn.classList.remove('hidden');
+
+    nextButton.textContent = 'FIND PROBLEM';
+
+    await tryAutoDetectHandle();
+}
+
+/**
+ * Try to auto-detect Codeforces problem from active tab URL
+ * Patterns: 
+ * - https://codeforces.com/problemset/problem/{contestId}/{index}
+ * - https://codeforces.com/contest/{contestId}/problem/{index}
+ */
+async function tryAutoDetectProblem() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (tab && tab.url) {
+            // Match problemset pattern
+            let match = tab.url.match(/codeforces\.com\/problemset\/problem\/(\d+)\/([A-Za-z0-9]+)/);
+
+            // Match contest pattern
+            if (!match) {
+                match = tab.url.match(/codeforces\.com\/contest\/(\d+)\/problem\/([A-Za-z0-9]+)/);
+            }
+
+            if (match) {
+                const contestId = match[1];
+                const index = match[2].toUpperCase();
+
+                // Fetch problem details from Codeforces API
+                await fetchAndDisplayDetectedProblem(contestId, index);
+                return;
+            }
+        }
+    } catch (e) {
+        console.error("Problem detection failed", e);
+    }
+
+    // No problem detected - show message
+    showError('Open a Codeforces problem page to auto-detect, or click "Find Similar" to get recommendations based on your history.');
+}
+
+/**
+ * Fetch problem details from Codeforces and display
+ */
+async function fetchAndDisplayDetectedProblem(contestId, index) {
+    showLoading();
+
+    try {
+        // Fetch from CF API
+        const res = await fetch(`https://codeforces.com/api/problemset.problems`);
+        if (!res.ok) throw new Error('Failed to fetch from Codeforces');
+
+        const data = await res.json();
+        if (data.status !== 'OK') throw new Error('Codeforces API error');
+
+        // Find the specific problem
+        const problem = data.result.problems.find(
+            p => p.contestId == contestId && p.index === index
+        );
+
+        if (problem) {
+            detectedProblem = {
+                id: null, // Not from our DB
+                contestId: problem.contestId,
+                index: problem.index,
+                name: `${problem.contestId}${problem.index}. ${problem.name}`,
+                rating: problem.rating || 'Unrated',
+                tags: problem.tags || [],
+                url: `https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}`,
+                explanation: `Tags: ${problem.tags.join(', ') || 'None'}`
+            };
+
+            currentProblem = detectedProblem;
+            displayProblem(detectedProblem);
+        } else {
+            showError('Problem not found in Codeforces database');
+        }
+    } catch (error) {
+        showError('Failed to fetch problem details: ' + error.message);
+    }
+}
+
+// Mode button event listeners
+if (modeDoingBtn) {
+    modeDoingBtn.addEventListener('click', () => initializeMode('doing'));
+}
+
+if (modeRandomBtn) {
+    modeRandomBtn.addEventListener('click', () => initializeMode('random'));
+}
+
+if (changeModeBtn) {
+    changeModeBtn.addEventListener('click', async () => {
+        // Clear saved mode and show selection
+        await chrome.storage.sync.remove('selectedMode');
+        currentMode = null;
+        showModeSelection();
+    });
+}
 
 /**
  * TASK 1: Auto-detect Codeforces handle from active tab URL
@@ -339,11 +513,10 @@ topicSelect.addEventListener('change', async () => {
 });
 
 /**
- * TASK 3: "FIND PROBLEM" primary flow
+ * TASK 3: "FIND PROBLEM" / "FIND SIMILAR" primary flow
  */
 nextButton.addEventListener('click', async () => {
     const handle = handleInput.value.trim();
-    const topic = topicSelect.value;
 
     // Validate handle
     if (!handle) {
@@ -352,12 +525,28 @@ nextButton.addEventListener('click', async () => {
     }
 
     // Save handle for next time
-    await chrome.storage.sync.set({ cfHandle: handle, lastTopic: topic });
+    await chrome.storage.sync.set({ cfHandle: handle });
 
-    // Fetch recommendation
-    // Also fetch status to ensure daily count is accurate immediately
+    // Fetch user status
     fetchUserStatus(handle);
-    await fetchRecommendation(handle, topic);
+
+    if (currentMode === 'doing') {
+        // Doing mode: find similar problems based on detected problem's tags
+        if (detectedProblem && detectedProblem.tags && detectedProblem.tags.length > 0) {
+            // Use the first tag from the detected problem
+            const primaryTag = detectedProblem.tags[0];
+            await chrome.storage.sync.set({ lastTopic: primaryTag });
+            await fetchRecommendation(handle, primaryTag);
+        } else {
+            // No detected problem or no tags - try to detect again
+            await tryAutoDetectProblem();
+        }
+    } else {
+        // Random mode: use selected topic
+        const topic = topicSelect.value;
+        await chrome.storage.sync.set({ lastTopic: topic });
+        await fetchRecommendation(handle, topic);
+    }
 });
 
 /**
@@ -654,7 +843,7 @@ function updateTimerUI() {
  */
 function resetButton() {
     nextButton.disabled = false;
-    nextButton.textContent = 'FIND PROBLEM';
+    nextButton.textContent = currentMode === 'doing' ? 'FIND SIMILAR' : 'FIND PROBLEM';
 }
 
 /**
@@ -987,5 +1176,5 @@ displayProblem = function (problem, targetRating) {
 
     // Reset find button
     nextButton.disabled = false;
-    nextButton.textContent = 'FIND PROBLEM';
+    nextButton.textContent = currentMode === 'doing' ? 'FIND SIMILAR' : 'FIND PROBLEM';
 };
