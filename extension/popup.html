@@ -132,8 +132,43 @@
             <button id="rating-higher" class="btn-rating-adjust" title="Higher difficulty">▲</button>
           </div>
         </div>
-        <p class="problem-rating">Rating: <span id="problem-rating"></span></p>
+        <p class="problem-rating">Rating: <span id="problem-rating"></span> <span id="complexity-hint"
+            class="complexity-hint"></span></p>
         <p class="problem-explanation" id="problem-explanation"></p>
+
+        <!-- Hint Panel -->
+        <div id="hint-panel" class="hint-panel hidden">
+          <div class="hint-header">
+            <span>💡 Hints</span>
+            <button id="close-hints" class="btn-icon" title="Close">×</button>
+          </div>
+          <div class="hints-container">
+            <div class="hint-item" id="hint-1">
+              <div class="hint-label">Pattern</div>
+              <div class="hint-content locked" id="hint-1-content">
+                <span class="hint-locked">🔒 Click to reveal</span>
+              </div>
+            </div>
+            <div class="hint-item" id="hint-2">
+              <div class="hint-label">Observation</div>
+              <div class="hint-content locked" id="hint-2-content">
+                <span class="hint-locked">🔒 Click to reveal</span>
+              </div>
+            </div>
+            <div class="hint-item" id="hint-3">
+              <div class="hint-label">Approach</div>
+              <div class="hint-content locked" id="hint-3-content">
+                <span class="hint-locked">🔒 Click to reveal</span>
+              </div>
+            </div>
+            <div class="hint-item" id="hint-4">
+              <div class="hint-label">Watch Out</div>
+              <div class="hint-content locked" id="hint-4-content">
+                <span class="hint-locked">🔒 Click to reveal</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="timer-section">
           <div id="timer-display" class="timer-display">00:00</div>
@@ -145,6 +180,9 @@
           <a id="solve-link" href="#" target="_blank" class="btn-solve">
             Solve
           </a>
+          <button id="get-hint" class="btn-hint" title="Get progressive hints">
+            💡 Hint
+          </button>
           <button id="skip-btn" class="btn-skip">
             Skip
           </button>
@@ -154,6 +192,79 @@
         </div>
 
         <div id="solved-status" class="solved-status hidden"></div>
+      </div>
+    </section>
+
+    <!-- Skill Radar Section -->
+    <section id="skill-section" class="skill-section hidden">
+      <h2>Your Skills</h2>
+      <div class="skill-chart-container">
+        <canvas id="skill-radar" width="250" height="250"></canvas>
+      </div>
+      <div id="skill-stats" class="skill-stats">
+        <div class="stat-item">
+          <span class="stat-label">Total Solved:</span>
+          <span id="total-solved" class="stat-value">--</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Avg Skill Level:</span>
+          <span id="avg-level" class="stat-value">--</span>
+        </div>
+      </div>
+      <div id="skill-list" class="skill-list"></div>
+      <button id="close-skills" class="btn-secondary" style="width:100%; margin-top: 10px;">Back to Practice</button>
+    </section>
+
+    <!-- Onboarding Wizard -->
+    <section id="onboarding" class="onboarding-section hidden">
+      <div class="onboarding-step" id="onboard-step-1">
+        <h2>👋 Welcome to CP Coach!</h2>
+        <p>Let's set you up for effective practice.</p>
+        <div class="onboard-question">
+          <label>What's your current Codeforces rating?</label>
+          <div class="rating-options">
+            <button class="rating-option" data-rating="800">
+              < 800</button>
+                <button class="rating-option" data-rating="1000">800-1200</button>
+                <button class="rating-option" data-rating="1400">1200-1600</button>
+                <button class="rating-option" data-rating="1800">1600+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="onboarding-step hidden" id="onboard-step-2">
+        <h2>🎯 What challenges you most?</h2>
+        <div class="topic-options">
+          <button class="topic-option" data-topic="dp">Dynamic Programming</button>
+          <button class="topic-option" data-topic="graphs">Graphs</button>
+          <button class="topic-option" data-topic="greedy">Greedy</button>
+          <button class="topic-option" data-topic="math">Math</button>
+          <button class="topic-option" data-topic="binary search">Binary Search</button>
+          <button class="topic-option" data-topic="implementation">Implementation</button>
+        </div>
+        <p class="onboard-hint">Select topics you want to improve</p>
+      </div>
+
+      <div class="onboarding-step hidden" id="onboard-step-3">
+        <h2>⏱️ Daily practice goal?</h2>
+        <div class="goal-options">
+          <button class="goal-option" data-goal="1">1 problem</button>
+          <button class="goal-option" data-goal="3">3 problems</button>
+          <button class="goal-option" data-goal="5">5 problems</button>
+        </div>
+      </div>
+
+      <div class="onboarding-step hidden" id="onboard-step-4">
+        <h2>🚀 You're all set!</h2>
+        <p>CP Coach will now recommend problems at your level and help you improve where you need it most.</p>
+        <button id="start-practicing" class="btn-primary" style="width:100%;">Start Practicing</button>
+      </div>
+
+      <div class="onboard-progress">
+        <span class="progress-dot active" data-step="1"></span>
+        <span class="progress-dot" data-step="2"></span>
+        <span class="progress-dot" data-step="3"></span>
+        <span class="progress-dot" data-step="4"></span>
       </div>
     </section>
   </div>

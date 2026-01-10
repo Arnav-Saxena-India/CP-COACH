@@ -581,3 +581,173 @@ def get_weakness_analysis(
             for c in upsolve_candidates[:5] # Limit to 5
         ]
     }
+
+
+# =============================================================================
+# HINT SYSTEM ENDPOINTS
+# =============================================================================
+
+@router.get("/hints/{problem_id}")
+def get_problem_hints(
+    problem_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get layered progressive hints for a problem.
+    
+    Returns 4 levels of hints:
+    1. Pattern identification (problem type)
+    2. Key observation (the "aha" insight)
+    3. Approach skeleton (high-level strategy)
+    4. Implementation trap (common mistakes)
+    
+    Hints are cached to reduce AI API calls.
+    """
+    from .models import ProblemHint
+    from .ai_coach import generate_layered_hints
+    
+    # Get problem
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    
+    # Check cache first
+    cached_hints = db.query(ProblemHint).filter(
+        ProblemHint.problem_id == problem_id
+    ).first()
+    
+    if cached_hints:
+        return {
+            "problem_id": problem_id,
+            "problem_name": problem.name,
+            "cached": True,
+            "hints": {
+                "hint_1": cached_hints.hint_1_pattern,
+                "hint_2": cached_hints.hint_2_observation,
+                "hint_3": cached_hints.hint_3_approach,
+                "hint_4": cached_hints.hint_4_trap
+            }
+        }
+    
+    # Generate new hints using AI
+    hints = generate_layered_hints(
+        problem_name=problem.name,
+        problem_rating=problem.rating,
+        problem_tags=problem.tags
+    )
+    
+    # Cache the hints
+    hint_record = ProblemHint(
+        problem_id=problem_id,
+        hint_1_pattern=hints.get("hint_1"),
+        hint_2_observation=hints.get("hint_2"),
+        hint_3_approach=hints.get("hint_3"),
+        hint_4_trap=hints.get("hint_4")
+    )
+    db.add(hint_record)
+    db.commit()
+    
+    return {
+        "problem_id": problem_id,
+        "problem_name": problem.name,
+        "cached": False,
+        "hints": hints
+    }
+
+
+# =============================================================================
+# SKILL TRACKING ENDPOINTS
+# =============================================================================
+
+@router.get("/skills/{handle}")
+def get_user_skills(
+    handle: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get user's skill profile for radar chart visualization.
+    
+    Returns skill levels (0-100%) for core CP topics:
+    - Greedy, DP, Graphs, Math, Data Structures, Binary Search
+    
+    Skill level is based on:
+    - Number of problems solved in topic
+    - Max difficulty solved in topic
+    """
+    from .models import UserSkill
+    
+    # Get user
+    db_user = db.query(User).filter(User.handle == handle).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Core topics for radar chart
+    core_topics = [
+        "greedy", "dp", "graphs", "math", 
+        "data structures", "binary search",
+        "implementation", "two pointers"
+    ]
+    
+    # Get all skills for user
+    user_skills = db.query(UserSkill).filter(
+        UserSkill.user_id == db_user.id
+    ).all()
+    
+    # Build skill map
+    skill_map = {s.topic.lower(): s for s in user_skills}
+    
+    # Calculate skill levels (0-100)
+    # Formula: min(100, (solve_count * 10) + (max_rating / 30))
+    # This gives credit for both quantity and difficulty
+    skills = []
+    for topic in core_topics:
+        skill = skill_map.get(topic)
+        if skill:
+            # Solve count contributes up to 50 points (5 solves = 50)
+            count_score = min(50, skill.solve_count * 10)
+            # Max rating contributes up to 50 points (1500 rating = 50)
+            rating_score = min(50, skill.max_solved_rating / 30)
+            level = int(count_score + rating_score)
+            
+            skills.append({
+                "topic": topic,
+                "level": min(100, level),
+                "solve_count": skill.solve_count,
+                "max_rating": skill.max_solved_rating,
+                "status": _get_skill_status(level)
+            })
+        else:
+            skills.append({
+                "topic": topic,
+                "level": 0,
+                "solve_count": 0,
+                "max_rating": 0,
+                "status": "not_started"
+            })
+    
+    # Calculate overall stats
+    total_solved = sum(s["solve_count"] for s in skills)
+    avg_level = sum(s["level"] for s in skills) // len(skills) if skills else 0
+    
+    return {
+        "handle": handle,
+        "rating": db_user.rating,
+        "total_solved": total_solved,
+        "average_skill_level": avg_level,
+        "skills": skills
+    }
+
+
+def _get_skill_status(level: int) -> str:
+    """Map skill level to status string."""
+    if level == 0:
+        return "not_started"
+    elif level < 25:
+        return "beginner"
+    elif level < 50:
+        return "learning"
+    elif level < 75:
+        return "intermediate"
+    else:
+        return "strong"
+

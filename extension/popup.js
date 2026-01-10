@@ -96,6 +96,18 @@ let currentProblem = null;
 // Detected problem from URL (for Doing mode)
 let detectedProblem = null;
 
+// Hint System Elements
+const hintBtn = document.getElementById('get-hint');
+const hintPanel = document.getElementById('hint-panel');
+const closeHintsBtn = document.getElementById('close-hints');
+const hintContents = [
+    document.getElementById('hint-1-content'),
+    document.getElementById('hint-2-content'),
+    document.getElementById('hint-3-content'),
+    document.getElementById('hint-4-content')
+];
+let currentHints = null; // Stores fetched hints for current problem
+
 // =============================================================================
 // VALIDATION & UTILITIES
 // =============================================================================
@@ -970,6 +982,109 @@ skipBtn.addEventListener('click', async () => {
     } finally {
         skipBtn.disabled = false;
         skipBtn.textContent = 'Skip';
+    }
+});
+
+// =============================================================================
+// HINT SYSTEM
+// =============================================================================
+
+/**
+ * Fetch and display layered hints for current problem
+ */
+async function fetchHints() {
+    if (!currentProblem || !currentProblem.id) {
+        // Show fallback message for untracked problems
+        hintPanel.classList.remove('hidden');
+        hintContents.forEach((el, i) => {
+            el.innerHTML = '<span class="hint-text">Hints unavailable for untracked problems</span>';
+            el.classList.remove('locked');
+            el.classList.add('revealed');
+        });
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/hints/${currentProblem.id}`);
+
+        if (!res.ok) {
+            throw new Error('Failed to fetch hints');
+        }
+
+        const data = await res.json();
+        currentHints = data.hints;
+
+        // Reset all hints to locked state
+        resetHintPanel();
+
+        // Show the panel
+        hintPanel.classList.remove('hidden');
+
+    } catch (error) {
+        console.error('Hint fetch error:', error);
+        // Show error in panel
+        hintPanel.classList.remove('hidden');
+        hintContents[0].innerHTML = '<span class="hint-text">Failed to load hints. Try again.</span>';
+        hintContents[0].classList.remove('locked');
+        hintContents[0].classList.add('revealed');
+    }
+}
+
+/**
+ * Reset hint panel to initial locked state
+ */
+function resetHintPanel() {
+    hintContents.forEach((el, i) => {
+        el.innerHTML = '<span class="hint-locked">🔒 Click to reveal</span>';
+        el.classList.add('locked');
+        el.classList.remove('revealed');
+    });
+    currentHints = null;
+}
+
+/**
+ * Reveal a specific hint level
+ */
+function revealHint(index) {
+    if (!currentHints) return;
+
+    const hintKeys = ['hint_1', 'hint_2', 'hint_3', 'hint_4'];
+    const hintText = currentHints[hintKeys[index]];
+
+    if (hintText && hintContents[index]) {
+        hintContents[index].innerHTML = `<span class="hint-text">${hintText}</span>`;
+        hintContents[index].classList.remove('locked');
+        hintContents[index].classList.add('revealed');
+    }
+}
+
+// Hint button click handler
+if (hintBtn) {
+    hintBtn.addEventListener('click', () => {
+        if (hintPanel.classList.contains('hidden')) {
+            fetchHints();
+        } else {
+            // Toggle panel off
+            hintPanel.classList.add('hidden');
+        }
+    });
+}
+
+// Close hints button
+if (closeHintsBtn) {
+    closeHintsBtn.addEventListener('click', () => {
+        hintPanel.classList.add('hidden');
+    });
+}
+
+// Click on locked hints to reveal
+hintContents.forEach((el, index) => {
+    if (el) {
+        el.addEventListener('click', () => {
+            if (el.classList.contains('locked') && currentHints) {
+                revealHint(index);
+            }
+        });
     }
 });
 

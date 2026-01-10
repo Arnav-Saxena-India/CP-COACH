@@ -621,3 +621,123 @@ body {
 .upsolve-reason {
     color: #9ca3af;
 }
+
+/* =============================================================================
+   HINT SYSTEM STYLES
+   ============================================================================= */
+
+/* Hint Button in action buttons */
+.btn-hint {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    background: #4f46e5; /* Indigo */
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-hint:hover {
+    background: #6366f1; /* Lighter indigo */
+    transform: scale(1.05);
+}
+
+/* Hint Panel Container */
+.hint-panel {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.hint-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.hint-header .btn-icon {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    width: 22px;
+    height: 22px;
+    font-size: 16px;
+}
+
+.hint-header .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: none;
+}
+
+/* Hints Container */
+.hints-container {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Individual Hint Item */
+.hint-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hint-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #a78bfa; /* Purple accent */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Hint Content Box */
+.hint-content {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    transition: all 0.2s;
+}
+
+/* Locked State */
+.hint-content.locked {
+    background: #2d2d2d;
+    border: 1px dashed #4f46e5;
+    color: #6b7280;
+    cursor: pointer;
+    text-align: center;
+}
+
+.hint-content.locked:hover {
+    background: #363636;
+    border-color: #6366f1;
+}
+
+.hint-locked {
+    font-size: 11px;
+    color: #818cf8;
+}
+
+/* Revealed State */
+.hint-content.revealed {
+    background: #1e1b4b; /* Dark indigo */
+    border: 1px solid #4338ca;
+    color: #e0e7ff;
+    cursor: default;
+}
+
+.hint-text {
+    display: block;
+}

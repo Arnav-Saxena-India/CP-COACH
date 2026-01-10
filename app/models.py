@@ -158,3 +158,27 @@ class UserAnalysisCache(Base):
     
     # Relationship
     user = relationship("User", backref="analysis_cache")
+
+
+class ProblemHint(Base):
+    """
+    Cache for AI-generated layered hints per problem.
+    Stores 4 progressive hints to teach thinking without spoiling.
+    """
+    __tablename__ = "problem_hints"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    problem_id = Column(Integer, ForeignKey("problems.id"), nullable=False, unique=True)
+    
+    # 4 layers of progressive hints
+    hint_1_pattern = Column(String, nullable=True)      # "This is a [GREEDY] problem"
+    hint_2_observation = Column(String, nullable=True)  # Key insight
+    hint_3_approach = Column(String, nullable=True)     # Approach skeleton
+    hint_4_trap = Column(String, nullable=True)         # Edge case warning
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    problem = relationship("Problem", backref="hints")
+
