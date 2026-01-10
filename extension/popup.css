@@ -630,7 +630,8 @@ body {
 .btn-hint {
     flex: 0 0 auto;
     padding: 8px 12px;
-    background: #4f46e5; /* Indigo */
+    background: #4f46e5;
+    /* Indigo */
     color: #fff;
     border: none;
     border-radius: 999px;
@@ -641,7 +642,8 @@ body {
 }
 
 .btn-hint:hover {
-    background: #6366f1; /* Lighter indigo */
+    background: #6366f1;
+    /* Lighter indigo */
     transform: scale(1.05);
 }
 
@@ -697,7 +699,8 @@ body {
 .hint-label {
     font-size: 10px;
     font-weight: 700;
-    color: #a78bfa; /* Purple accent */
+    color: #a78bfa;
+    /* Purple accent */
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -732,7 +735,8 @@ body {
 
 /* Revealed State */
 .hint-content.revealed {
-    background: #1e1b4b; /* Dark indigo */
+    background: #1e1b4b;
+    /* Dark indigo */
     border: 1px solid #4338ca;
     color: #e0e7ff;
     cursor: default;
@@ -740,4 +744,266 @@ body {
 
 .hint-text {
     display: block;
+}
+
+/* =============================================================================
+   SKILL RADAR STYLES
+   ============================================================================= */
+
+.skill-section {
+    padding: 0;
+}
+
+.skill-section h2 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.skill-chart-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 10px;
+    border: 1px solid #333;
+}
+
+.skill-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    border-radius: 8px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 10px;
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.skill-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.skill-item {
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 1px solid #333;
+}
+
+.skill-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.skill-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.skill-level {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.skill-bar {
+    height: 4px;
+    background: #2d2d2d;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.skill-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease-out;
+}
+
+.skill-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #6b7280;
+}
+
+/* =============================================================================
+   ONBOARDING WIZARD STYLES
+   ============================================================================= */
+
+.onboarding-section {
+    padding: 16px 0;
+    text-align: center;
+}
+
+.onboarding-step {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.onboarding-step h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.onboarding-step p {
+    font-size: 12px;
+    color: #a0a0a0;
+    margin-bottom: 16px;
+}
+
+.onboard-question label {
+    font-size: 12px;
+    color: #a0a0a0;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.rating-options,
+.goal-options {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.rating-option,
+.goal-option {
+    padding: 10px 16px;
+    background: #1e1e1e;
+    border: 2px solid #333;
+    border-radius: 12px;
+    color: #e0e0e0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rating-option:hover,
+.goal-option:hover {
+    border-color: #6366f1;
+    background: #252526;
+}
+
+.rating-option.selected,
+.goal-option.selected {
+    border-color: #818cf8;
+    background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+    color: #fff;
+}
+
+.topic-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.topic-option {
+    padding: 8px 14px;
+    background: #1e1e1e;
+    border: 2px solid #333;
+    border-radius: 20px;
+    color: #e0e0e0;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.topic-option:hover {
+    border-color: #f59e0b;
+    background: #252526;
+}
+
+.topic-option.selected {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #78350f 0%, #d97706 100%);
+    color: #fff;
+}
+
+.onboard-hint {
+    font-size: 10px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.onboard-progress {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #333;
+    transition: all 0.3s;
+}
+
+.progress-dot.active {
+    background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+    box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
+}
+
+/* =============================================================================
+   CONSTRAINT COACHING STYLES
+   ============================================================================= */
+
+.complexity-hint {
+    font-size: 11px;
+    color: #10b981;
+    font-weight: 600;
+    cursor: help;
+    margin-left: 4px;
+    padding: 2px 6px;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.complexity-hint:hover {
+    background: rgba(16, 185, 129, 0.2);
 }
