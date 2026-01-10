@@ -1356,20 +1356,39 @@ function getComplexityHint(rating) {
 }
 
 /**
- * Update the complexity hint display
+ * Update the complexity hint display - hidden by default, click to reveal
  */
 function updateComplexityHint(rating) {
     if (!complexityHint) return;
 
     const complexity = getComplexityHint(rating);
     if (complexity) {
-        complexityHint.textContent = `• ${complexity.hint}`;
-        complexityHint.title = complexity.tip;
+        // Store the hint data but show "Think first" initially
+        complexityHint.dataset.hint = complexity.hint;
+        complexityHint.dataset.tip = complexity.tip;
+        complexityHint.dataset.revealed = 'false';
+        complexityHint.textContent = '🤔 TC?';
+        complexityHint.title = 'Click to reveal expected complexity (think first!)';
         complexityHint.classList.remove('hidden');
+        complexityHint.classList.add('clickable');
     } else {
         complexityHint.classList.add('hidden');
     }
 }
+
+// Click handler for complexity hint reveal
+if (complexityHint) {
+    complexityHint.addEventListener('click', () => {
+        if (complexityHint.dataset.revealed === 'false') {
+            complexityHint.textContent = `• ${complexityHint.dataset.hint}`;
+            complexityHint.title = complexityHint.dataset.tip;
+            complexityHint.dataset.revealed = 'true';
+            complexityHint.classList.remove('clickable');
+            complexityHint.classList.add('revealed');
+        }
+    });
+}
+
 
 // =============================================================================
 // SKILL RADAR CHART

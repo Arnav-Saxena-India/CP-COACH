@@ -994,16 +994,48 @@ body {
 
 .complexity-hint {
     font-size: 11px;
-    color: #10b981;
     font-weight: 600;
-    cursor: help;
+    cursor: pointer;
     margin-left: 4px;
     padding: 2px 6px;
-    background: rgba(16, 185, 129, 0.1);
     border-radius: 4px;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    transition: all 0.2s;
 }
 
-.complexity-hint:hover {
+/* Clickable state - "Think first!" */
+.complexity-hint.clickable {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px dashed rgba(245, 158, 11, 0.5);
+    animation: pulse-hint 2s infinite;
+}
+
+.complexity-hint.clickable:hover {
+    background: rgba(245, 158, 11, 0.2);
+    transform: scale(1.05);
+}
+
+@keyframes pulse-hint {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Revealed state - shows answer */
+.complexity-hint.revealed {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    cursor: help;
+    animation: none;
+}
+
+.complexity-hint.revealed:hover {
     background: rgba(16, 185, 129, 0.2);
 }
