@@ -1022,42 +1022,57 @@ skipBtn.addEventListener('click', async () => {
  * Fetch and display layered hints for current problem
  */
 async function fetchHints() {
+    console.log('fetchHints called, currentProblem:', currentProblem);
+
     if (!currentProblem || !currentProblem.id) {
+        console.log('No problem ID - showing fallback message');
         // Show fallback message for untracked problems
         hintPanel.classList.remove('hidden');
         hintContents.forEach((el, i) => {
-            el.innerHTML = '<span class="hint-text">Hints unavailable for untracked problems</span>';
-            el.classList.remove('locked');
-            el.classList.add('revealed');
+            if (el) {
+                el.innerHTML = '<span class="hint-text">Hints unavailable for untracked problems</span>';
+                el.classList.remove('locked');
+                el.classList.add('revealed');
+            }
         });
         return;
     }
 
     try {
+        console.log('Fetching hints from:', `${API_BASE_URL}/hints/${currentProblem.id}`);
         const res = await fetch(`${API_BASE_URL}/hints/${currentProblem.id}`);
+        console.log('API response status:', res.status);
 
         if (!res.ok) {
             throw new Error('Failed to fetch hints');
         }
 
         const data = await res.json();
-        currentHints = data.hints;
+        console.log('Hints received:', data);
 
-        // Reset all hints to locked state
+        // Reset panel UI first (this also clears old hints)
         resetHintPanel();
 
+        // Now set the new hints
+        currentHints = data.hints;
+        console.log('currentHints set to:', currentHints);
+
         // Show the panel
+        console.log('Showing hint panel');
         hintPanel.classList.remove('hidden');
 
     } catch (error) {
         console.error('Hint fetch error:', error);
         // Show error in panel
         hintPanel.classList.remove('hidden');
-        hintContents[0].innerHTML = '<span class="hint-text">Failed to load hints. Try again.</span>';
-        hintContents[0].classList.remove('locked');
-        hintContents[0].classList.add('revealed');
+        if (hintContents[0]) {
+            hintContents[0].innerHTML = '<span class="hint-text">Failed to load hints. Try again.</span>';
+            hintContents[0].classList.remove('locked');
+            hintContents[0].classList.add('revealed');
+        }
     }
 }
+
 
 /**
  * Reset hint panel to initial locked state
@@ -1088,16 +1103,27 @@ function revealHint(index) {
 }
 
 // Hint button click handler
+console.log('Hint button element:', hintBtn);
+console.log('Hint panel element:', hintPanel);
+
 if (hintBtn) {
-    hintBtn.addEventListener('click', () => {
-        if (hintPanel.classList.contains('hidden')) {
+    console.log('Adding click listener to hint button');
+    hintBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Hint button clicked!');
+        if (hintPanel && hintPanel.classList.contains('hidden')) {
+            console.log('Opening hint panel, fetching hints...');
             fetchHints();
-        } else {
-            // Toggle panel off
+        } else if (hintPanel) {
+            console.log('Closing hint panel');
             hintPanel.classList.add('hidden');
         }
     });
+} else {
+    console.error('Hint button not found in DOM!');
 }
+
 
 // Close hints button
 if (closeHintsBtn) {
